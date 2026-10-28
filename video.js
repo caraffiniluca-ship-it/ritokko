@@ -223,6 +223,6 @@ export class EditorVideo {
     this.inEsportazione = false;
     this.video.currentTime = this.inizio;
     const estensione = tipo.startsWith('video/mp4') ? 'mp4' : 'webm';
-    return new File(pezzi, `glowy-${Date.now()}.${estensione}`, { type: tipo.split(';')[0] });
+    return new File(pezzi, `ritokko-${Date.now()}.${estensione}`, { type: tipo.split(';')[0] });
   }
 }

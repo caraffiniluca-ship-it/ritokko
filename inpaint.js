@@ -5,7 +5,7 @@ ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.1/di
 ort.env.logLevel = 'error';
 
 const URL_MODELLO = 'https://huggingface.co/andraniksargsyan/migan/resolve/main/migan_pipeline_v2.onnx';
-const CACHE_MODELLI = 'glowy-modelli-v1';
+const CACHE_MODELLI = 'ritokko-modelli-v1';
 
 let sessione = null;
 

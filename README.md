@@ -1,4 +1,4 @@
-# Glowy · Ogni scatto, da copertina
+# Ritokko · Ogni scatto, da copertina
 
 Web app (PWA) per iPhone che ritocca foto e video, crea immagini con l'AI e li condivide su Instagram e TikTok.
 È gratuita e open source: non servono abbonamenti, server propri né un PC acceso.
@@ -55,11 +55,11 @@ Non c'è niente da compilare: sono file statici.
 ## Installarla sull'iPhone
 1. Apri l'indirizzo con **Safari**.
 2. Tocca **Condividi**, poi **Aggiungi alla schermata Home**.
-3. Apri Glowy dall'icona: si avvia a tutto schermo, come un'app.
+3. Apri Ritokko dall'icona: si avvia a tutto schermo, come un'app.
 
 ## Più utilizzi di "Chiedi" e "Crea" (facoltativo)
 Crea un account gratuito su huggingface.co, poi vai in **Settings → Access Tokens** e crea un token di tipo **Read**.
-Incollalo nelle Impostazioni di Glowy, l'icona in alto a destra. Il token resta solo sul telefono.
+Incollalo nelle Impostazioni di Ritokko, l'icona in alto a destra. Il token resta solo sul telefono.
 
 ## Provarla sul PC
 ```bash
@@ -92,5 +92,21 @@ Poi apri http://localhost:8600.
 | `sottotitoli.js` | sottotitoli automatici (Whisper) |
 | `sw.js`, `manifest.webmanifest`, `icone/` | installazione come app e cache |
 
+## Marchio e logo
+Il logo è una **"R"** bianca la cui gamba diventa una scia che sfuma (il "tocco" della gomma magica), con una scintilla.
+I file sono nella cartella `logo/`:
+
+| File | Uso |
+|---|---|
+| `ritokko-icona.svg` / `ritokko-icona-1024.png` | icona dell'app, quadrata (App Store e Google Play la arrotondano da soli) |
+| `ritokko-simbolo.svg` | simbolo con angoli arrotondati e sfondo trasparente (sito, favicon, materiali) |
+| `ritokko-profilo-social-320.png` | foto profilo per Instagram e TikTok |
+| `ritokko-logo-scuro.svg` / `.png` | logo orizzontale con il pay-off, per sfondi scuri |
+| `ritokko-logo-chiaro.svg` / `.png` | logo orizzontale con il pay-off, per sfondi chiari |
+
+Colori: rosa `#FF4D8D`, viola `#A95CFF`, oro `#FFB547`, sfondo `#07060C`. Pay-off: *Ogni scatto, da copertina.*
+Il testo del logo usa il carattere di sistema (SF Pro / Segoe UI): per la stampa e per depositare il marchio è
+meglio far convertire la scritta in tracciati da un grafico.
+
 ## Licenza
-Codice di Glowy: [MIT](LICENSE). I modelli AI hanno le loro licenze, elencate anche nell'app (Impostazioni → Licenze e crediti).
+Codice di Ritokko: [MIT](LICENSE). I modelli AI hanno le loro licenze, elencate anche nell'app (Impostazioni → Licenze e crediti).

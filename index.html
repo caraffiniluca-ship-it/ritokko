@@ -4,15 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <meta name="theme-color" content="#07060c">
-  <meta name="description" content="Glowy: ogni scatto, da copertina. Editor AI gratuito e open source per foto e video su iPhone.">
+  <meta name="description" content="Ritokko: ogni scatto, da copertina. Editor AI gratuito e open source per foto e video su iPhone.">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Glowy">
-  <title>Glowy · Ogni scatto, da copertina</title>
+  <meta name="apple-mobile-web-app-title" content="Ritokko">
+  <title>Ritokko · Ogni scatto, da copertina</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icone/icona-180.png">
-  <link rel="icon" href="icone/icona-192.png">
+  <link rel="icon" href="logo/ritokko-simbolo.svg" type="image/svg+xml">
+  <link rel="icon" href="icone/icona-192.png" type="image/png">
+  <meta property="og:title" content="Ritokko · Ogni scatto, da copertina">
+  <meta property="og:description" content="Editor AI gratuito per foto e video su iPhone: togli persone con un tocco, cambia sfondo, sottotitoli automatici.">
+  <meta property="og:image" content="logo/ritokko-logo-scuro.png">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -52,8 +56,8 @@
 
   <header>
     <div class="marchio">
-      <svg class="logo" viewBox="0 0 24 24"><use href="#i-scintille"/></svg>
-      <h1>Glowy</h1>
+      <img class="logo" src="logo/ritokko-simbolo.svg" alt="" width="30" height="30">
+      <h1>Ritokko</h1>
     </div>
     <div class="interruttore vetro" role="tablist">
       <span class="indicatore"></span>
@@ -68,6 +72,7 @@
   <main id="vista-foto">
     <div id="area-foto" class="area">
       <label class="benvenuto" id="vuoto-foto">
+        <img class="logo-eroe" src="logo/ritokko-simbolo.svg" alt="Ritokko" width="76" height="76">
         <span class="eyebrow">AI sul tuo iPhone</span>
         <span class="titolo">Ogni scatto,<br><em>da copertina.</em></span>
         <span class="sottotitolo">Togli persone e oggetti con un tocco, cambia lo sfondo, scegli un look. Poi pubblica.</span>
@@ -283,7 +288,7 @@
           <p>Rimuovi, Sfondo, Look, Migliora, Formato e tutto il Video (sottotitoli compresi) lavorano <b>sul telefono</b>:
             foto, video e audio non escono dall'iPhone.</p>
           <p>"Chiedi" invia la foto, ridotta a 1024 px, e "Crea" invia il testo che scrivi a servizi pubblici di
-            Hugging Face (huggingface.co), che li elaborano secondo le loro condizioni. Glowy non ha server suoi e non
+            Hugging Face (huggingface.co), che li elaborano secondo le loro condizioni. Ritokko non ha server suoi e non
             raccoglie dati: non ci sono account, statistiche o pubblicità.</p>
         </div>
       </details>
@@ -297,7 +302,7 @@
       <details>
         <summary>Licenze e crediti</summary>
         <div class="testo-info">
-          <p><b>Glowy</b>: licenza MIT.</p>
+          <p><b>Ritokko</b>: licenza MIT.</p>
           <ul>
             <li>MI-GAN, rimozione (Picsart AI Research): MIT</li>
             <li>SlimSAM / Segment Anything, selezione: Apache 2.0</li>

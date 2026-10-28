@@ -36,7 +36,15 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width:
 /* ---------- intestazione ---------- */
 header { display: flex; align-items: center; gap: 10px; padding: 10px 16px 6px; }
 .marchio { display: flex; align-items: center; gap: 6px; flex: 1; }
-.marchio .logo { width: 26px; height: 26px; stroke: url(#grad); stroke-width: 2; }
+.marchio .logo { width: 30px; height: 30px; border-radius: 8px; box-shadow: 0 4px 14px -4px rgba(255,77,141,0.7); }
+.logo-eroe { width: 76px; height: 76px; border-radius: 20px; box-shadow: 0 18px 40px -12px rgba(169,92,255,0.8);
+  animation: galleggia 5s ease-in-out infinite; }
+@keyframes galleggia { 50% { transform: translateY(-6px) rotate(-2deg); } }
+@media (max-width: 390px) {
+  header { gap: 8px; padding-inline: 12px; }
+  h1 { font-size: 21px; }
+  .interruttore button { padding: 7px 9px; }
+}
 h1 { font-size: 24px; letter-spacing: -0.03em; font-weight: 800; margin: 0;
   background: var(--gradiente); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .interruttore { position: relative; display: grid; grid-template-columns: 1fr 1fr 1fr; border-radius: 999px; padding: 4px; }
@@ -53,7 +61,7 @@ button, .tondo, .pillola { font: inherit; color: var(--testo); cursor: pointer; 
   justify-content: center; gap: 8px; transition: transform 0.15s, background 0.2s, opacity 0.2s; }
 button:active, .tondo:active, .pillola:active { transform: scale(0.94); }
 button:disabled { opacity: 0.4; pointer-events: none; }
-.tondo { width: 44px; height: 44px; border-radius: 50%; padding: 0; }
+.tondo { width: 44px; height: 44px; border-radius: 50%; padding: 0; flex: none; }
 .pillola { height: 44px; border-radius: 999px; padding: 0 18px; font-size: 14px; font-weight: 600; white-space: nowrap; }
 .pillola svg { width: 18px; height: 18px; }
 .secondario { background: var(--vetro); border: 1px solid var(--bordo); border-radius: 16px; padding: 13px 16px; font-weight: 600; }

@@ -1,8 +1,8 @@
 // Service worker: tiene in cache l'app e le librerie, così si apre subito e Luce/Migliora/Video funzionano anche senza rete.
-const VERSIONE = 'glowy-v3';
+const VERSIONE = 'ritokko-v4';
 const APP = ['./', 'index.html', 'style.css', 'app.js', 'gl.js', 'video.js', 'inpaint.js', 'seleziona.js', 'ai-online.js',
   'sfondo.js', 'sottotitoli.js', 'crea.js',
-  'manifest.webmanifest', 'icone/icona-180.png', 'icone/icona-192.png', 'icone/icona-512.png'];
+  'manifest.webmanifest', 'logo/ritokko-simbolo.svg', 'icone/icona-180.png', 'icone/icona-192.png', 'icone/icona-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSIONE).then(c => c.addAll(APP)).then(() => self.skipWaiting()));
@@ -10,7 +10,7 @@ self.addEventListener('install', e => {
 
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys()
-    .then(chiavi => Promise.all(chiavi.filter(k => k.startsWith('glowy-v') && k !== VERSIONE).map(k => caches.delete(k))))
+    .then(chiavi => Promise.all(chiavi.filter(k => (k.startsWith('ritokko-v') && k !== VERSIONE) || k.startsWith('glowy-')) // glowy-: vecchio nome dell'app.map(k => caches.delete(k))))
     .then(() => self.clients.claim()));
 });
 

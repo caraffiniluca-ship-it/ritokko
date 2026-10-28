@@ -43,7 +43,7 @@ function copiaCanvas(sorgente, l = sorgente.width, a = sorgente.height) {
   return c;
 }
 
-const inJpeg = (canvas, nome = `glowy-${Date.now()}.jpg`) =>
+const inJpeg = (canvas, nome = `ritokko-${Date.now()}.jpg`) =>
   new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.93)).then(b => new File([b], nome, { type: 'image/jpeg' }));
 
 async function condividi(file) {
@@ -727,4 +727,4 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catc
 riempiTutti();
 
 // accesso per le prove dal browser
-window.glowy = { caricaFoto, caricaVideo, foto, editorVideo, vaiA, genera };
+window.ritokko = { caricaFoto, caricaVideo, foto, editorVideo, vaiA, genera };

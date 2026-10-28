@@ -34,6 +34,7 @@ function mostraStato(testo, avanzamento) {
 const nascondiStato = () => { $('#stato').hidden = true; };
 
 function mostraScelta(testo, scelte) {
+  traccia(`messaggio: ${testo.slice(0, 200)}`); // così la diagnostica dice anche cosa è comparso a schermo
   mostraStato(testo, 1);
   $('#stato-barra').hidden = true;
   const riga = document.createElement('div');
@@ -314,7 +315,10 @@ let mascheraVuota = true;
 let ultimoPunto = null;
 let inizioTocco = null;
 // su iPhone il Pennello è il predefinito: il "Tocca" (SlimSAM) chiede molta memoria al primo tocco
-let modoSelezione = IOS ? 'pennello' : 'tocca';
+// Su iPhone (e in modalità leggera) il "Tocca" usa MODNet, che riconosce le persone ed è leggero:
+// SlimSAM, che riconosce qualsiasi oggetto, al primo tocco chiede troppa memoria e Safari chiude l'app.
+const toccoLeggero = () => IOS || modalitaLeggera();
+let modoSelezione = 'tocca';
 
 let generazioneMaschera = 0; // cambia a ogni "Pulisci": una selezione ancora in corso non deve ricomparire dopo
 function pulisciMaschera() {
@@ -325,8 +329,9 @@ function pulisciMaschera() {
   segnalaSelezione(false);
 }
 
-const AIUTO_TOCCA = 'Tocca la persona o l\'oggetto da togliere: lo seleziono io (diventa rosso), poi tocca «Togli dalla foto».' +
-  (IOS ? ' Su iPhone il primo tocco è lento e usa molta memoria: se l\'app si chiude, usa il Pennello.' : '');
+const AIUTO_TOCCA = toccoLeggero()
+  ? 'Tocca la persona da togliere: la seleziono io (diventa rossa), poi tocca «Togli dalla foto». Per oggetti e scritte usa il Pennello.'
+  : 'Tocca la persona o l\'oggetto da togliere: lo seleziono io (diventa rosso), poi tocca «Togli dalla foto».';
 const AIUTO_PENNELLO = 'Passa il dito su ciò che vuoi togliere (persone, oggetti, scritte), poi tocca «Togli dalla foto».';
 const AIUTO_PRONTO = 'Selezione pronta ✓ Ora tocca «Togli dalla foto». Puoi aggiungere altre zone, oppure «Ricomincia».';
 
@@ -337,7 +342,9 @@ function segnalaSelezione(pronta) {
   else if (aiuto.textContent === AIUTO_PRONTO) aiuto.textContent = modoSelezione === 'tocca' ? AIUTO_TOCCA : AIUTO_PENNELLO;
   $('#btn-esegui-rimuovi').classList.toggle('pulsa', pronta);
 }
-const AIUTO_SFONDO = 'Tocca il soggetto da tenere: un prodotto, un animale, un oggetto.';
+const AIUTO_SFONDO = toccoLeggero()
+  ? 'Tocca la persona da tenere: le altre finiscono nello sfondo.'
+  : 'Tocca il soggetto da tenere: un prodotto, un animale, un oggetto.';
 const AIUTO_SFONDO_AUTO = 'Trovo da solo le persone e cambio lo sfondo dietro di loro.';
 
 function scegliModoSelezione(modo) {
@@ -421,15 +428,29 @@ async function selezionaQui(e) {
   const strumento = foto.strumento;
   const generazione = generazioneMaschera;
   const baseDelTocco = foto.base;
-  inizioAttivita('selezione con un tocco');
+  const leggero = toccoLeggero();
+  inizioAttivita(leggero ? 'tocco su una persona' : 'selezione con un tocco');
   try {
-    const { selezionaConTocco } = await import('./seleziona.js');
-    if (analisiPronta !== foto.base) mostraStato('Analizzo la foto (solo al primo tocco)…');
-    const { maschera, copertura } = await selezionaConTocco(foto.base, p.fx, p.fy, {
-      suAvanzamento: v => mostraStato(`Scarico l'AI di selezione (14 MB, solo la prima volta)… ${Math.round(v * 100)}%`, v),
-    });
-    analisiPronta = foto.base;
-    nascondiStato();
+    let maschera, copertura;
+    if (leggero) {
+      // iPhone: riconosco la persona toccata con MODNet (512 px), leggero e senza chiusure
+      const { personaNelPunto } = await import('./scontorno.js');
+      mostraStato('Cerco la persona che hai toccato…');
+      ({ maschera, copertura } = await personaNelPunto(foto.base, p.fx, p.fy,
+        v => mostraStato(`Scarico l'AI per le persone (7 MB, solo la prima volta)… ${Math.round(v * 100)}%`, v)));
+      nascondiStato();
+      if (!maschera) {
+        return avviso('Qui non trovo una persona. Su iPhone il tocco riconosce le persone: per oggetti e scritte usa il Pennello.');
+      }
+    } else {
+      const { selezionaConTocco } = await import('./seleziona.js');
+      if (analisiPronta !== foto.base) mostraStato('Analizzo la foto (solo al primo tocco)…');
+      ({ maschera, copertura } = await selezionaConTocco(foto.base, p.fx, p.fy, {
+        suAvanzamento: v => mostraStato(`Scarico l'AI di selezione (14 MB, solo la prima volta)… ${Math.round(v * 100)}%`, v),
+      }));
+      analisiPronta = foto.base;
+      nascondiStato();
+    }
     if (copertura > 0.85 || (strumento === 'rimuovi' && copertura > 0.7)) {
       return avviso('Ho selezionato quasi tutta la foto: tocca più al centro del soggetto.');
     }

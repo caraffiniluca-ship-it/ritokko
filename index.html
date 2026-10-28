@@ -105,11 +105,11 @@
         <button data-modo="pennello"><svg><use href="#i-pennello"/></svg>Pennello</button>
       </div>
       <p class="aiuto" id="aiuto-rimuovi">Tocca la persona o l'oggetto: lo seleziono io. Puoi toccarne più di uno.</p>
-      <label class="cursore" id="riga-pennello" hidden>Pennello <input type="range" id="pennello" min="10" max="120" value="40"></label>
-      <div class="riga">
-        <button id="btn-pulisci-maschera" class="secondario"><svg><use href="#i-pulisci"/></svg>Pulisci</button>
-        <button id="btn-esegui-rimuovi" class="primario"><svg><use href="#i-gomma"/></svg>Cancella</button>
+      <div class="riga azioni-pannello">
+        <button id="btn-pulisci-maschera" class="secondario"><svg><use href="#i-annulla"/></svg>Ricomincia</button>
+        <button id="btn-esegui-rimuovi" class="primario"><svg><use href="#i-gomma"/></svg>Togli dalla foto</button>
       </div>
+      <label class="cursore" id="riga-pennello" hidden>Grandezza pennello <input type="range" id="pennello" min="10" max="120" value="40"></label>
     </section>
 
     <section class="pannello vetro" id="pannello-sfondo" hidden>
@@ -121,11 +121,11 @@
       </div>
       <p class="aiuto" id="aiuto-sfondo">Trovo da solo le persone e cambio lo sfondo dietro di loro.</p>
       <div class="chip" id="effetti-sfondo"></div>
-      <label class="cursore" id="riga-sfocatura">Sfocatura <input type="range" id="sfocatura" min="4" max="40" value="16"></label>
-      <div class="riga">
-        <button id="btn-sfondo-annulla" class="secondario"><svg><use href="#i-pulisci"/></svg>Togli</button>
+      <div class="riga azioni-pannello">
+        <button id="btn-sfondo-annulla" class="secondario"><svg><use href="#i-annulla"/></svg>Com'era</button>
         <button id="btn-sfondo-applica" class="primario" disabled><svg><use href="#i-sfondo"/></svg>Applica</button>
       </div>
+      <label class="cursore" id="riga-sfocatura">Sfocatura <input type="range" id="sfocatura" min="4" max="40" value="16"></label>
     </section>
 
     <section class="pannello vetro" id="pannello-luce" hidden>
@@ -279,7 +279,7 @@
 
   <dialog id="impostazioni" class="vetro">
     <form method="dialog">
-      <h2>Impostazioni</h2>
+      <h2>Impostazioni <small id="versione-app"></small></h2>
       <label>Token Hugging Face <small>(facoltativo, gratuito)</small>
         <input type="password" id="token-hf" placeholder="hf_…" autocomplete="off">
       </label>

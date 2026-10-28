@@ -1,7 +1,7 @@
 // Memoria: su iPhone Safari chiude (e ricarica) la pagina se usa troppa RAM, senza dare errori.
 // Qui ci sono le regole per restare leggeri e il "registro" che capisce se l'ultima volta l'app si è chiusa.
 
-export const VERSIONE_APP = '1.4.0';
+export const VERSIONE_APP = '1.4.1';
 
 export const IOS =/iPhone|iPad|iPod/.test(navigator.userAgent) ||
   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);

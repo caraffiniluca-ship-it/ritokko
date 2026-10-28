@@ -5,8 +5,10 @@ import { STILI_SOTTOTITOLI } from './sottotitoli.js';
 import {
   IOS, latoLavoro, modalitaLeggera, impostaModalitaLeggera, preanalisiAutomatica,
   inizioAttivita, fineAttivita, chiusuraPrecedente, liberaCanvas, decodificaRidotta,
-  traccia, leggiTraccia, infoDispositivo, avviaSessione,
+  traccia, leggiTraccia, infoDispositivo, avviaSessione, VERSIONE_APP,
 } from './memoria.js';
+
+document.querySelector('#versione-app').textContent = `versione ${VERSIONE_APP}`;
 
 const sessioneInterrotta = avviaSessione();
 traccia(`avvio${sessioneInterrotta ? ' (dopo una chiusura improvvisa)' : ''}`);
@@ -320,11 +322,21 @@ function pulisciMaschera() {
   ctxMaschera.clearRect(0, 0, canvasMaschera.width, canvasMaschera.height);
   mascheraVuota = true;
   $('#btn-esegui-rimuovi').disabled = true;
+  segnalaSelezione(false);
 }
 
-const AIUTO_TOCCA = 'Tocca la persona o l\'oggetto: lo seleziono io. Puoi toccarne più di uno.' +
+const AIUTO_TOCCA = 'Tocca la persona o l\'oggetto da togliere: lo seleziono io (diventa rosso), poi tocca «Togli dalla foto».' +
   (IOS ? ' Su iPhone il primo tocco è lento e usa molta memoria: se l\'app si chiude, usa il Pennello.' : '');
-const AIUTO_PENNELLO = 'Passa il dito su ciò che vuoi togliere: persone, oggetti, scritte.';
+const AIUTO_PENNELLO = 'Passa il dito su ciò che vuoi togliere (persone, oggetti, scritte), poi tocca «Togli dalla foto».';
+const AIUTO_PRONTO = 'Selezione pronta ✓ Ora tocca «Togli dalla foto». Puoi aggiungere altre zone, oppure «Ricomincia».';
+
+// Quando c'è una selezione, dico il passo successivo e faccio risaltare il pulsante giusto.
+function segnalaSelezione(pronta) {
+  const aiuto = $('#aiuto-rimuovi');
+  if (pronta) aiuto.textContent = AIUTO_PRONTO;
+  else if (aiuto.textContent === AIUTO_PRONTO) aiuto.textContent = modoSelezione === 'tocca' ? AIUTO_TOCCA : AIUTO_PENNELLO;
+  $('#btn-esegui-rimuovi').classList.toggle('pulsa', pronta);
+}
 const AIUTO_SFONDO = 'Tocca il soggetto da tenere: un prodotto, un animale, un oggetto.';
 const AIUTO_SFONDO_AUTO = 'Trovo da solo le persone e cambio lo sfondo dietro di loro.';
 
@@ -347,15 +359,20 @@ function avviaPreanalisi() {
   const base = foto.base;
   if (!base || !usaTocco() || analisiPronta === base || !preanalisiAutomatica()) return;
   const aiuto = aiutoAttivo();
-  aiuto.textContent = 'Preparo la selezione intelligente…';
+  if (mascheraVuota || foto.strumento === 'sfondo') aiuto.textContent = 'Preparo la selezione intelligente…';
   inizioAttivita('preparazione della selezione intelligente');
   import('./seleziona.js')
     .then(({ preanalizza }) => preanalizza(base, {
-      suAvanzamento: v => { aiuto.textContent = `Scarico l'AI di selezione (14 MB, solo la prima volta)… ${Math.round(v * 100)}%`; },
+      // il testo lo aggiorno solo se sei ancora in modalità Tocca (nel Pennello conta il suo aiuto)
+      suAvanzamento: v => { if (usaTocco() && mascheraVuota) aiuto.textContent = `Scarico l'AI di selezione (14 MB, solo la prima volta)… ${Math.round(v * 100)}%`; },
     }))
     .then(() => { if (foto.base === base) analisiPronta = base; })
     .catch(e => console.warn('Pre-analisi non riuscita', e))
-    .finally(() => { fineAttivita(); if (usaTocco()) aiutoAttivo().textContent = testoAiuto(); });
+    .finally(() => {
+      fineAttivita();
+      // non sovrascrivo "Selezione pronta" né l'aiuto del Pennello
+      if (usaTocco() && (foto.strumento === 'sfondo' || mascheraVuota)) aiutoAttivo().textContent = testoAiuto();
+    });
 }
 
 function puntoImmagine(e) {
@@ -449,6 +466,7 @@ function aggiungiAllaMaschera(selezione) {
   liberaCanvas(colorata, selezione);
   mascheraVuota = false;
   $('#btn-esegui-rimuovi').disabled = false;
+  segnalaSelezione(true);
 }
 
 function tratto(p) {
@@ -462,6 +480,7 @@ function tratto(p) {
   ctxMaschera.stroke();
   mascheraVuota = false;
   $('#btn-esegui-rimuovi').disabled = false;
+  segnalaSelezione(true);
 }
 
 $('#btn-pulisci-maschera').onclick = pulisciMaschera;

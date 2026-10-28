@@ -69,6 +69,8 @@ button:disabled { opacity: 0.4; pointer-events: none; }
   box-shadow: var(--ombra); text-shadow: 0 1px 8px rgba(0,0,0,0.25); position: relative; overflow: hidden; }
 .primario.tondo { border-radius: 50%; padding: 0; flex: none; }
 .largo { width: 100%; }
+.primario.pulsa { animation: pulsa 1.4s ease-in-out infinite; }
+@keyframes pulsa { 50% { box-shadow: 0 0 0 6px rgba(255,77,141,0.35), var(--ombra); transform: scale(1.03); } }
 .brilla::after { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,0.45) 50%, transparent 70%);
   transform: translateX(-100%); animation: brillio 3.2s ease-in-out infinite; }
 @keyframes brillio { 60%, 100% { transform: translateX(100%); } }
@@ -158,6 +160,7 @@ dialog label.interruttore-riga { flex-direction: row; align-items: center; justi
 .aiuto { color: var(--tenue); font-size: 14px; margin: 0; }
 .riga { display: flex; gap: 10px; }
 .riga > * { flex: 1; }
+.azioni-pannello button { white-space: nowrap; padding-inline: 10px; font-size: 15px; }
 .pannello > * { flex: none; }
 .cursori { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 18px; }
 .cursori .cursore { font-size: 13px; }

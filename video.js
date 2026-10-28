@@ -36,6 +36,8 @@ export class EditorVideo {
     this.mostraSottotitoli = true;
     this.renderer = null;
     this.inEsportazione = false;
+    this.attivo = false;
+    this.sporco = true;
     this.video.addEventListener('timeupdate', () => {
       if (!this.inEsportazione && this.fine && this.video.currentTime >= this.fine) {
         this.video.pause();
@@ -95,6 +97,13 @@ export class EditorVideo {
     this.canvas.height = this.sovrapposto.height = a;
     if (!this.renderer) this.renderer = new Renderer(this.canvas);
     this.disegnaFotogramma();
+    this.segnaModifica();
+  }
+
+  // Safari può togliere la GPU alla pagina: ricreo il motore e ridisegno
+  ripristinaRenderer() {
+    this.renderer = new Renderer(this.canvas);
+    this.segnaModifica();
   }
 
   disegnaFotogramma(renderer = this.renderer) {
@@ -110,11 +119,18 @@ export class EditorVideo {
     }
   }
 
+  // da chiamare quando cambiano regolazioni, formato o sottotitoli: il prossimo fotogramma va ridisegnato
+  segnaModifica() { this.sporco = true; }
+
+  // Ridisegna solo se serve (video in riproduzione o qualcosa è cambiato) e solo con la scheda Video visibile:
+  // ridisegnare sempre un video 4K a 60 fotogrammi al secondo consumerebbe memoria e batteria per niente.
   ciclo() {
     if (this._ciclo) return;
     const ctx = this.sovrapposto.getContext('2d');
+    for (const ev of ['seeked', 'loadeddata', 'play']) this.video.addEventListener(ev, () => this.segnaModifica());
     const passo = () => {
-      if (!this.inEsportazione) {
+      if (!this.inEsportazione && this.attivo && (this.sporco || !this.video.paused)) {
+        this.sporco = false;
         this.disegnaFotogramma();
         this.disegnaSottotitoliSu(ctx, this.sovrapposto.width, this.sovrapposto.height);
       }
@@ -123,13 +139,22 @@ export class EditorVideo {
     this._ciclo = requestAnimationFrame(passo);
   }
 
+  // la scheda Video è visibile? (impostato dall'app)
+  impostaAttivo(attivo) {
+    this.attivo = attivo;
+    if (attivo) this.segnaModifica(); else this.video.pause();
+  }
+
   riproduciPausa() {
     if (this.video.paused) {
       if (this.video.currentTime < this.inizio || this.video.currentTime >= this.fine) this.video.currentTime = this.inizio;
       this.video.playbackRate = this.velocita;
-      this.video.play();
-    } else this.video.pause();
-    return !this.video.paused;
+      // play() viene rifiutato se nel frattempo si mette in pausa: non è un errore
+      this.video.play().catch(() => {});
+      return true;
+    }
+    this.video.pause();
+    return false;
   }
 
   vaiA(t) { this.video.currentTime = t; }
@@ -165,10 +190,15 @@ export class EditorVideo {
     const tipo = tipoSupportato();
     if (!tipo) throw new Error('Questo browser non può registrare video');
     const [l, a] = this.misuraUscita(LATO_USCITA);
-    const telaGl = document.createElement('canvas');
+    // un solo contesto WebGL per tutte le esportazioni: crearne uno nuovo ogni volta li esaurisce su Safari
+    if (!this.telaEsporta) {
+      this.telaEsporta = document.createElement('canvas');
+      this.rendererEsporta = new Renderer(this.telaEsporta);
+    }
+    const telaGl = this.telaEsporta;
     telaGl.width = l;
     telaGl.height = a;
-    const r = new Renderer(telaGl);
+    const r = this.rendererEsporta;
     // la registrazione parte da un canvas 2D: fotogramma WebGL + sottotitoli sopra
     const composta = document.createElement('canvas');
     composta.width = l;
@@ -176,52 +206,73 @@ export class EditorVideo {
     const cc = composta.getContext('2d');
     const flusso = composta.captureStream(30);
 
-    const audio = await this.preparaAudio();
-    for (const traccia of audio.dest.stream.getAudioTracks()) flusso.addTrack(traccia);
-
     const pezzi = [];
-    const registratore = new MediaRecorder(flusso, { mimeType: tipo, videoBitsPerSecond: 10_000_000 });
-    registratore.ondataavailable = e => e.data.size && pezzi.push(e.data);
-    const finito = new Promise(ok => { registratore.onstop = ok; });
-
-    const componi = () => {
-      this.disegnaFotogramma(r);
-      cc.drawImage(telaGl, 0, 0);
-      if (this.mostraSottotitoli && this.sottotitoli.length) {
-        disegnaSottotitolo(cc, this.sottotitoli, this.video.currentTime, l, a, this.stileSottotitoli);
-      }
-    };
-
+    let registratore = null;
+    let timer = 0;
+    let interrotto = null;
     this.inEsportazione = true;
-    this.video.pause();
-    this.video.currentTime = this.inizio;
-    await new Promise(ok => { this.video.onseeked = ok; });
-    this.video.onseeked = null;
-    this.video.muted = false;
-    this.video.playbackRate = this.velocita;
-    componi();
-    registratore.start(500);
-    if (audio.brano && this.musica) { audio.brano.currentTime = 0; audio.brano.play().catch(() => {}); }
-    await this.video.play();
-    // timer a 30 fps invece di requestAnimationFrame: continua anche se il browser rallenta l'animazione
-    await new Promise(ok => {
-      const fine = () => { clearInterval(timer); this.video.removeEventListener('ended', fine); ok(); };
-      const timer = setInterval(() => {
-        componi();
-        this.disegnaFotogramma();
-        const t = this.video.currentTime;
-        suAvanzamento?.((t - this.inizio) / Math.max(0.01, this.fine - this.inizio));
-        if (t >= this.fine - 0.02 || this.video.ended) fine();
-      }, 1000 / 30);
-      this.video.addEventListener('ended', fine);
-    });
-    this.video.pause();
-    audio.brano?.pause();
-    this.video.muted = true;
-    registratore.stop();
-    await finito;
-    this.inEsportazione = false;
-    this.video.currentTime = this.inizio;
+    try {
+      const audio = await this.preparaAudio();
+      for (const traccia of audio.dest.stream.getAudioTracks()) flusso.addTrack(traccia);
+
+      registratore = new MediaRecorder(flusso, { mimeType: tipo, videoBitsPerSecond: 10_000_000 });
+      registratore.ondataavailable = e => e.data.size && pezzi.push(e.data);
+      const finito = new Promise(ok => { registratore.onstop = ok; });
+
+      const componi = () => {
+        this.disegnaFotogramma(r);
+        cc.drawImage(telaGl, 0, 0);
+        if (this.mostraSottotitoli && this.sottotitoli.length) {
+          disegnaSottotitolo(cc, this.sottotitoli, this.video.currentTime, l, a, this.stileSottotitoli);
+        }
+      };
+
+      this.video.pause();
+      this.video.currentTime = this.inizio;
+      await new Promise(ok => { this.video.onseeked = ok; });
+      this.video.onseeked = null;
+      this.video.muted = false;
+      this.video.playbackRate = this.velocita;
+      componi();
+      registratore.start(500);
+      if (audio.brano && this.musica) { audio.brano.currentTime = 0; audio.brano.play().catch(() => {}); }
+      await this.video.play();
+      // timer a 30 fps invece di requestAnimationFrame: continua anche se il browser rallenta l'animazione
+      await new Promise((ok, ko) => {
+        const chiudi = () => { clearInterval(timer); this.video.removeEventListener('ended', fine); this.video.removeEventListener('pause', inPausa); };
+        const fine = () => { chiudi(); ok(); };
+        // se il video si ferma da solo (app in sottofondo, chiamata) interrompo invece di aspettare per sempre
+        const inPausa = () => {
+          if (this.video.currentTime >= this.fine - 0.05 || this.video.ended) return fine();
+          interrotto = new Error('esportazione interrotta: il video si è fermato (app in sottofondo?). Riprova tenendo l\'app aperta');
+          chiudi();
+          ko(interrotto);
+        };
+        timer = setInterval(() => {
+          componi();
+          const t = this.video.currentTime;
+          suAvanzamento?.((t - this.inizio) / Math.max(0.01, this.fine - this.inizio));
+          if (t >= this.fine - 0.02 || this.video.ended) fine();
+        }, 1000 / 30);
+        this.video.addEventListener('ended', fine);
+        this.video.addEventListener('pause', inPausa);
+      });
+      audio.brano?.pause();
+      registratore.stop();
+      await finito;
+    } finally {
+      // qualunque cosa succeda, rimetto l'editor in uno stato utilizzabile
+      clearInterval(timer);
+      this.video.pause();
+      this.audio?.brano?.pause();
+      this.video.muted = true;
+      if (registratore && registratore.state !== 'inactive') registratore.stop();
+      flusso.getVideoTracks().forEach(t => t.stop());
+      composta.width = composta.height = 0;
+      this.inEsportazione = false;
+      this.video.currentTime = this.inizio;
+      this.segnaModifica();
+    }
     const estensione = tipo.startsWith('video/mp4') ? 'mp4' : 'webm';
     return new File(pezzi, `ritokko-${Date.now()}.${estensione}`, { type: tipo.split(';')[0] });
   }

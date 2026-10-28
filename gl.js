@@ -169,6 +169,7 @@ export function autoMigliora(sorgente) {
     for (let i = 0; i < 256; i++) { acc += istogramma[i]; if (acc >= n * p) return i / 255; }
     return 1;
   };
+  c.width = c.height = 0; // libero subito il canvas di appoggio
   const media = somma / n / 255;
   const basso = percentile(0.02);
   const alto = percentile(0.98);

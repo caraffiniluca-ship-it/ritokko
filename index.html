@@ -115,7 +115,11 @@
     <section class="pannello vetro" id="pannello-sfondo" hidden>
       <div class="maniglia"></div>
       <h3>Sfondo</h3>
-      <p class="aiuto" id="aiuto-sfondo">Tocca il soggetto da tenere: una persona, un prodotto, un animale.</p>
+      <div class="segmenti" id="modo-sfondo">
+        <button data-modo="auto" class="attivo"><svg><use href="#i-sfondo"/></svg>Persone</button>
+        <button data-modo="tocca"><svg><use href="#i-tocco"/></svg>Tocca</button>
+      </div>
+      <p class="aiuto" id="aiuto-sfondo">Trovo da solo le persone e cambio lo sfondo dietro di loro.</p>
       <div class="chip" id="effetti-sfondo"></div>
       <label class="cursore" id="riga-sfocatura">Sfocatura <input type="range" id="sfocatura" min="4" max="40" value="16"></label>
       <div class="riga">
@@ -315,6 +319,14 @@
             <li>Z-Image-Turbo (Tongyi-MAI), FLUX.1 schnell, Qwen-Image / Qwen-Image-Edit: Apache 2.0</li>
             <li>FLUX.1 Kontext [dev] (Black Forest Labs), usato da "Chiedi": licenza <b>non commerciale</b></li>
           </ul>
+        </div>
+      </details>
+      <details id="blocco-diagnostica">
+        <summary>Diagnostica</summary>
+        <div class="testo-info">
+          <p>Gli ultimi eventi dell'app, utili per capire un problema. Restano solo sul telefono finché non li copi tu.</p>
+          <textarea id="testo-diagnostica" rows="6" readonly></textarea>
+          <button id="btn-copia-diagnostica" class="secondario largo" type="button">Copia diagnostica</button>
         </div>
       </details>
       <button class="primario largo">Fatto</button>

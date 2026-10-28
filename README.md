@@ -10,7 +10,8 @@ Web app (PWA) per iPhone che ritocca foto e video, crea immagini con l'AI e li c
 |---|---|---|
 | **Rimuovi → Tocca**: selezioni persona o oggetto con un tocco | sull'iPhone | SlimSAM (Segment Anything, Apache 2.0) con Transformers.js |
 | **Rimuovi → Pennello / Cancella**: gomma magica | sull'iPhone | MI-GAN (Picsart AI Research, MIT) con ONNX Runtime Web e WebGPU |
-| **Sfondo**: tocchi il soggetto e lo sfondo diventa sfocato (effetto ritratto), bianco con ombra (foto prodotto, ideale per Vinted ed eBay), nero, pastello o gradiente | sull'iPhone | SlimSAM e canvas |
+| **Sfondo → Persone**: trova da solo le persone, senza tocchi | sull'iPhone | MODNet (Apache 2.0, 7 MB, lavora a 512 px: leggero) |
+| **Sfondo → Tocca**: tocchi il soggetto (oggetti, animali) e lo sfondo diventa sfocato (effetto ritratto), bianco con ombra (foto prodotto, ideale per Vinted ed eBay), nero, pastello o gradiente | sull'iPhone | SlimSAM e canvas |
 | **Look**: Clean, Pellicola, Y2K, Golden, Vintage, Notte, Pop, B&N… con grana e sbiadito | sull'iPhone | shader WebGL |
 | **Migliora**: auto-ritocco, nitidezza, vivacità, vignettatura | sull'iPhone | istogramma e WebGL |
 | **Formato**: Post 4:5, Quadrato, Storia 9:16, Orizzontale, con inquadratura regolabile | sull'iPhone | canvas |
@@ -66,6 +67,12 @@ Incollalo nelle Impostazioni di Ritokko, l'icona in alto a destra. Il token rest
 python -m http.server 8600
 ```
 Poi apri http://localhost:8600.
+
+## Se l'app si chiude da sola (iPhone)
+Safari chiude la pagina quando finisce la memoria. Ritokko se ne accorge alla riapertura, attiva la **modalità
+leggera** e propone di **copiare la diagnostica**, con gli ultimi eventi, il modello e la versione dell'app.
+La trovi anche in Impostazioni → Diagnostica. Su iPhone la gomma parte con il **Pennello**: il "Tocca" (SlimSAM)
+al primo uso chiede molta memoria.
 
 ## Limiti noti
 - Gli Space gratuiti di Hugging Face possono essere occupati, in errore o cambiare API: l'app prova da sola quelli di

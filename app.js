@@ -5,7 +5,16 @@ import { STILI_SOTTOTITOLI } from './sottotitoli.js';
 import {
   IOS, latoLavoro, modalitaLeggera, impostaModalitaLeggera, preanalisiAutomatica,
   inizioAttivita, fineAttivita, chiusuraPrecedente, liberaCanvas, decodificaRidotta,
+  traccia, leggiTraccia, infoDispositivo, avviaSessione,
 } from './memoria.js';
+
+const sessioneInterrotta = avviaSessione();
+traccia(`avvio${sessioneInterrotta ? ' (dopo una chiusura improvvisa)' : ''}`);
+// ogni tocco su un pulsante finisce nella traccia: così so cosa stavi facendo prima di una chiusura
+document.addEventListener('click', e => {
+  const b = e.target.closest?.('button, label, [data-strumento]');
+  if (b) traccia(`tocco: ${(b.dataset.strumento || b.dataset.modo || b.id || b.textContent || '').trim().slice(0, 40)}`);
+}, true);
 
 const $ = sel => document.querySelector(sel);
 const PASSI_ANNULLA = IOS ? 5 : 10; // ogni passo è una copia della foto in memoria
@@ -48,7 +57,10 @@ function copiaCanvas(sorgente, l = sorgente.width, a = sorgente.height) {
 }
 
 const inJpeg = (canvas, nome = `ritokko-${Date.now()}.jpg`) =>
-  new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.93)).then(b => new File([b], nome, { type: 'image/jpeg' }));
+  new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.93)).then(b => {
+    if (!b) throw new Error('Immagine non pronta: riprova tra un attimo'); // canvas vuoto o memoria piena
+    return new File([b], nome, { type: 'image/jpeg' });
+  });
 
 async function condividi(file) {
   if (navigator.canShare?.({ files: [file] })) {
@@ -71,6 +83,7 @@ async function condividi(file) {
 // Adatta un contenitore (con canvas al 100%) allo spazio dell'area, mantenendo le proporzioni.
 function adatta(contenitore, area, l, a) {
   const r = area.getBoundingClientRect();
+  if (r.width < 80 || r.height < 80) return; // area nascosta o in transizione: tengo la misura precedente
   const s = Math.min((r.width - 16) / l, (r.height - 16) / a);
   if (!(s > 0)) return;
   contenitore.style.width = `${Math.floor(l * s)}px`;
@@ -137,25 +150,62 @@ function ridisegnaFoto(parametri = foto.parametri) { rendererFoto?.disegna(param
 
 function adattaPalco() { if (foto.base) adatta(palco, $('#area-foto'), foto.base.width, foto.base.height); }
 new ResizeObserver(adattaPalco).observe($('#area-foto'));
+// riserva: rotazione, ritorno dall'app in sottofondo, tastiera (il ResizeObserver a volte non scatta)
+const adattaTutto = () => { adattaPalco(); adattaVideo?.(); adattaCrea?.(); };
+for (const ev of ['resize', 'orientationchange', 'pageshow']) addEventListener(ev, () => setTimeout(adattaTutto, 50));
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') setTimeout(adattaTutto, 50); });
+
+// Safari può togliere la GPU alla pagina (memoria, app in sottofondo): la riprendo e ridisegno, invece di restare nero.
+canvasFoto.addEventListener('webglcontextlost', e => { e.preventDefault(); traccia('WebGL della foto perso'); });
+canvasFoto.addEventListener('webglcontextrestored', () => {
+  traccia('WebGL della foto ripristinato');
+  rendererFoto = new Renderer(canvasFoto);
+  if (foto.base) mostraSorgente(sfondo.anteprima ?? foto.base);
+});
 
 // Mostra una sorgente (base o anteprima) adattando le misure dei canvas se servono.
-function mostraSorgente(sorgente) {
+// parametri: regolazioni da applicare (per "Prima" si passano quelle a zero).
+function mostraSorgente(sorgente, parametri = foto.parametri) {
   if (canvasFoto.width !== sorgente.width || canvasFoto.height !== sorgente.height) {
-    for (const c of [canvasFoto, canvasMaschera]) { c.width = sorgente.width; c.height = sorgente.height; }
-    pulisciMaschera();
+    canvasFoto.width = sorgente.width;
+    canvasFoto.height = sorgente.height;
     adatta(palco, $('#area-foto'), sorgente.width, sorgente.height);
   }
+  // la maschera segue solo la foto in lavorazione (non l'originale mostrato con "Prima")
+  if (sorgente !== foto.originale || sorgente === foto.base) {
+    if (canvasMaschera.width !== sorgente.width || canvasMaschera.height !== sorgente.height) {
+      canvasMaschera.width = sorgente.width;
+      canvasMaschera.height = sorgente.height;
+      pulisciMaschera();
+    }
+  }
   rendererFoto.impostaSorgente(sorgente, sorgente.width, sorgente.height);
-  ridisegnaFoto();
+  ridisegnaFoto(parametri);
+}
+
+// --- Storia per "Annulla": ogni passo ricorda la foto E le regolazioni (Look, Migliora) di quel momento ---
+let ultimiParametri = { ...PARAMETRI_ZERO };
+const inUso = c => c === foto.base || c === foto.originale || c === formato.prima || foto.storia.some(p => p.base === c);
+
+function aggiungiPasso(passo) {
+  foto.storia.push(passo);
+  if (foto.storia.length > PASSI_ANNULLA) {
+    const vecchio = foto.storia.shift();
+    if (!inUso(vecchio.base)) liberaCanvas(vecchio.base);
+  }
+}
+
+// da chiamare quando un preset, il ritocco automatico o un cursore cambiano le regolazioni
+function registraParametri() {
+  if (JSON.stringify(foto.parametri) === JSON.stringify(ultimiParametri)) return;
+  aggiungiPasso({ base: foto.base, parametri: ultimiParametri });
+  ultimiParametri = { ...foto.parametri };
 }
 
 function impostaBase(nuova, salvaStoria = true) {
-  if (salvaStoria && foto.base) {
-    foto.storia.push(foto.base);
-    if (foto.storia.length > PASSI_ANNULLA) {
-      const vecchia = foto.storia.shift();
-      if (vecchia !== foto.originale && vecchia !== formato.prima) liberaCanvas(vecchia);
-    }
+  if (salvaStoria && foto.base && nuova !== foto.base) {
+    aggiungiPasso({ base: foto.base, parametri: { ...foto.parametri } });
+    ultimiParametri = { ...foto.parametri };
   }
   foto.base = nuova;
   mostraSorgente(nuova);
@@ -173,15 +223,18 @@ async function caricaFoto(file) {
     const base = copiaCanvas(bitmap, Math.round(bitmap.width * s), Math.round(bitmap.height * s));
     bitmap.close?.();
     if (!rendererFoto) rendererFoto = new Renderer(canvasFoto);
-    // libero la foto precedente e i suoi passi di "annulla"
-    liberaCanvas(foto.originale, ...foto.storia, sfondo.soggetto, sfondo.anteprima);
-    if (foto.base !== null) liberaCanvas(foto.base);
+    // chiudo lo strumento aperto e libero la foto precedente con i suoi passi di "annulla"
+    chiudiStrumento();
+    liberaCanvas(foto.originale, foto.base, ...foto.storia.map(p => p.base), sfondo.soggetto, sfondo.anteprima, formato.prima);
     sfondo.anteprima = null;
+    sfondo.soggetto = null;
+    formato.prima = null;
+    formato.ritagliata = null;
     foto.originale = base;
     foto.storia = [];
     foto.base = null;
-    sfondo.soggetto = null;
     Object.assign(foto.parametri, PARAMETRI_ZERO);
+    ultimiParametri = { ...PARAMETRI_ZERO };
     aggiornaCursoriLuce();
     aggiornaCursoriMigliora();
     costruisciChip($('#preset-foto'), Object.keys(PRESET), 'Naturale', applicaPresetFoto);
@@ -206,32 +259,42 @@ for (const id of ['#file-foto', '#file-foto-2']) {
 }
 
 const STRUMENTI = ['rimuovi', 'sfondo', 'luce', 'migliora', 'chiedi', 'formato'];
+function chiudiStrumento() { if (foto.strumento) scegliStrumento(foto.strumento); }
 function scegliStrumento(nome) {
   const precedente = foto.strumento;
   foto.strumento = foto.strumento === nome ? null : nome;
+  if (precedente === 'rimuovi' && foto.strumento !== 'rimuovi') generazioneMaschera++; // selezioni in corso: non servono più
   if (precedente === 'sfondo' && foto.strumento !== 'sfondo') annullaSfondo();
   if (foto.strumento === 'formato') apriFormato();
+  if (foto.strumento === 'sfondo' && sfondo.modo === 'auto' && !sfondo.soggetto) setTimeout(avviaScontorno, 0);
   for (const p of STRUMENTI) $(`#pannello-${p}`).hidden = foto.strumento !== p;
   document.querySelectorAll('#barra-foto [data-strumento]').forEach(b => b.classList.toggle('attivo', b.dataset.strumento === foto.strumento));
   $('#btn-formato').classList.toggle('attivo', foto.strumento === 'formato');
   palco.classList.toggle('disegno', foto.strumento === 'rimuovi' || foto.strumento === 'sfondo');
+  palco.classList.toggle('con-maschera', foto.strumento === 'rimuovi');
   avviaPreanalisi();
 }
 document.querySelectorAll('#barra-foto [data-strumento]').forEach(b => { b.onclick = () => scegliStrumento(b.dataset.strumento); });
 $('#btn-formato').onclick = () => scegliStrumento('formato');
 
 $('#btn-annulla').onclick = () => {
-  const precedente = foto.storia.pop();
-  if (precedente) impostaBase(precedente, false);
+  if (sfondo.soggetto || sfondo.anteprima) annullaSfondo(); // l'anteprima dello sfondo non deve sopravvivere ad Annulla
+  const passo = foto.storia.pop();
+  if (!passo) return;
+  Object.assign(foto.parametri, PARAMETRI_ZERO, passo.parametri);
+  ultimiParametri = { ...foto.parametri };
+  aggiornaCursoriLuce();
+  aggiornaCursoriMigliora();
+  if (passo.base !== foto.base) impostaBase(passo.base, false); else ridisegnaFoto();
 };
 
 const confronta = $('#btn-confronta');
 const etichettaPrima = $('.etichetta-prima');
 confronta.addEventListener('pointerdown', e => {
   e.preventDefault();
-  if (!foto.originale) return;
-  rendererFoto.impostaSorgente(foto.originale, foto.originale.width, foto.originale.height);
-  ridisegnaFoto(PARAMETRI_ZERO);
+  if (!foto.originale?.width) return;
+  // mostro l'originale nelle sue proporzioni (dopo un ritaglio sarebbe deformato)
+  mostraSorgente(foto.originale, PARAMETRI_ZERO);
   etichettaPrima.hidden = false;
 });
 for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) {
@@ -248,17 +311,22 @@ const COLORE_MASCHERA = '#ff2d55';
 let mascheraVuota = true;
 let ultimoPunto = null;
 let inizioTocco = null;
-let modoSelezione = 'tocca';
+// su iPhone il Pennello è il predefinito: il "Tocca" (SlimSAM) chiede molta memoria al primo tocco
+let modoSelezione = IOS ? 'pennello' : 'tocca';
 
+let generazioneMaschera = 0; // cambia a ogni "Pulisci": una selezione ancora in corso non deve ricomparire dopo
 function pulisciMaschera() {
+  generazioneMaschera++;
   ctxMaschera.clearRect(0, 0, canvasMaschera.width, canvasMaschera.height);
   mascheraVuota = true;
   $('#btn-esegui-rimuovi').disabled = true;
 }
 
-const AIUTO_TOCCA = 'Tocca la persona o l\'oggetto: lo seleziono io. Puoi toccarne più di uno.';
+const AIUTO_TOCCA = 'Tocca la persona o l\'oggetto: lo seleziono io. Puoi toccarne più di uno.' +
+  (IOS ? ' Su iPhone il primo tocco è lento e usa molta memoria: se l\'app si chiude, usa il Pennello.' : '');
 const AIUTO_PENNELLO = 'Passa il dito su ciò che vuoi togliere: persone, oggetti, scritte.';
-const AIUTO_SFONDO = 'Tocca il soggetto da tenere: una persona, un prodotto, un animale.';
+const AIUTO_SFONDO = 'Tocca il soggetto da tenere: un prodotto, un animale, un oggetto.';
+const AIUTO_SFONDO_AUTO = 'Trovo da solo le persone e cambio lo sfondo dietro di loro.';
 
 function scegliModoSelezione(modo) {
   modoSelezione = modo;
@@ -269,7 +337,7 @@ function scegliModoSelezione(modo) {
 }
 document.querySelectorAll('#modo-selezione button').forEach(b => { b.onclick = () => scegliModoSelezione(b.dataset.modo); });
 
-const usaTocco = () => foto.strumento === 'sfondo' || (foto.strumento === 'rimuovi' && modoSelezione === 'tocca');
+const usaTocco = () => (foto.strumento === 'sfondo' && sfondo.modo === 'tocca') || (foto.strumento === 'rimuovi' && modoSelezione === 'tocca');
 const aiutoAttivo = () => (foto.strumento === 'sfondo' ? $('#aiuto-sfondo') : $('#aiuto-rimuovi'));
 const testoAiuto = () => (foto.strumento === 'sfondo' ? AIUTO_SFONDO : AIUTO_TOCCA);
 
@@ -334,6 +402,8 @@ async function selezionaQui(e) {
   const p = puntoImmagine(e);
   const segno = onda(e);
   const strumento = foto.strumento;
+  const generazione = generazioneMaschera;
+  const baseDelTocco = foto.base;
   inizioAttivita('selezione con un tocco');
   try {
     const { selezionaConTocco } = await import('./seleziona.js');
@@ -347,6 +417,8 @@ async function selezionaQui(e) {
       return avviso('Ho selezionato quasi tutta la foto: tocca più al centro del soggetto.');
     }
     if (copertura < 0.0003) return avviso('Non ho trovato niente da selezionare in quel punto: riprova.');
+    // nel frattempo hai premuto Pulisci, cambiato strumento o foto: questa selezione non serve più
+    if (generazione !== generazioneMaschera || baseDelTocco !== foto.base || strumento !== foto.strumento) return;
     if (strumento === 'sfondo') aggiungiSoggetto(maschera);
     else aggiungiAllaMaschera(maschera);
   } catch (err) {
@@ -374,6 +446,7 @@ function aggiungiAllaMaschera(selezione) {
     ctxMaschera.drawImage(colorata, Math.round(Math.cos(a) * d), Math.round(Math.sin(a) * d));
   }
   ctxMaschera.drawImage(colorata, 0, 0);
+  liberaCanvas(colorata, selezione);
   mascheraVuota = false;
   $('#btn-esegui-rimuovi').disabled = false;
 }
@@ -411,12 +484,52 @@ $('#btn-esegui-rimuovi').onclick = async () => {
 };
 
 // --- Sfondo: tieni il soggetto, cambia il resto ---
-const sfondo = { soggetto: null, effetto: 'Sfocato', anteprima: null };
+const sfondo = { soggetto: null, effetto: 'Sfocato', anteprima: null, modo: 'auto' };
 
 function aggiungiSoggetto(maschera) {
   if (!sfondo.soggetto) sfondo.soggetto = copiaCanvas(maschera, foto.base.width, foto.base.height);
   else sfondo.soggetto.getContext('2d').drawImage(maschera, 0, 0, foto.base.width, foto.base.height);
+  liberaCanvas(maschera);
   aggiornaAnteprimaSfondo();
+}
+
+function scegliModoSfondo(modo) {
+  sfondo.modo = modo;
+  document.querySelectorAll('#modo-sfondo button').forEach(b => b.classList.toggle('attivo', b.dataset.modo === modo));
+  $('#aiuto-sfondo').textContent = modo === 'auto' ? AIUTO_SFONDO_AUTO : AIUTO_SFONDO;
+  if (modo === 'auto') avviaScontorno(); else avviaPreanalisi();
+}
+document.querySelectorAll('#modo-sfondo button').forEach(b => { b.onclick = () => scegliModoSfondo(b.dataset.modo); });
+
+// Modalità "Persone": MODNet trova le persone da solo, senza tocchi (leggero, va bene anche su iPhone).
+let scontornoInCorso = false;
+async function avviaScontorno() {
+  if (scontornoInCorso || !foto.base || foto.strumento !== 'sfondo' || sfondo.modo !== 'auto') return;
+  scontornoInCorso = true;
+  const base = foto.base;
+  const generazione = generazioneMaschera;
+  mostraStato('Cerco le persone nella foto…');
+  inizioAttivita('scontorno automatico delle persone');
+  try {
+    const { scontornaPersone } = await import('./scontorno.js');
+    const { maschera, copertura } = await scontornaPersone(base, v =>
+      mostraStato(`Scarico l'AI per le persone (7 MB, solo la prima volta)… ${Math.round(v * 100)}%`, v));
+    nascondiStato();
+    if (base !== foto.base || generazione !== generazioneMaschera || foto.strumento !== 'sfondo') return liberaCanvas(maschera);
+    if (copertura < 0.01) {
+      liberaCanvas(maschera);
+      return avviso('Non ho trovato persone in questa foto. Per un oggetto o un animale usa "Tocca".');
+    }
+    liberaCanvas(sfondo.soggetto);
+    sfondo.soggetto = null;
+    aggiungiSoggetto(maschera);
+  } catch (e) {
+    console.error(e);
+    avviso(`Non riesco a trovare le persone: ${e.message}`);
+  } finally {
+    fineAttivita();
+    scontornoInCorso = false;
+  }
 }
 
 let attesaAnteprima = 0;
@@ -438,6 +551,8 @@ function aggiornaAnteprimaSfondo() {
 }
 
 function annullaSfondo() {
+  generazioneMaschera++; // una selezione o uno scontorno ancora in corso non deve ricomparire dopo "Togli"
+  clearTimeout(attesaAnteprima);
   liberaCanvas(sfondo.soggetto, sfondo.anteprima);
   sfondo.soggetto = null;
   sfondo.anteprima = null;
@@ -462,41 +577,67 @@ $('#btn-sfondo-applica').onclick = () => {
 };
 
 // --- Formato per i social (ritaglio) ---
-const formato = { prima: null, nome: 'Originale', salvato: false };
+const formato = { prima: null, nome: 'Originale', salvato: false, ritagliata: null };
 function apriFormato() {
-  formato.prima = foto.base;
-  formato.nome = 'Originale';
-  formato.salvato = false;
-  $('#posizione-foto').value = 0.5;
-  $('#riga-pos-foto').hidden = true;
-  costruisciChip($('#formati-foto'), Object.keys(FORMATI_FOTO), 'Originale', nome => { formato.nome = nome; applicaFormato(); });
+  // se la foto è ancora il ritaglio fatto l'ultima volta, riparto dalla foto prima del ritaglio:
+  // così "Originale" annulla davvero e "Quadrato" non ritaglia un 4:5 già ritagliato
+  const continua = formato.ritagliata && foto.base === formato.ritagliata && formato.prima?.width;
+  if (!continua) {
+    formato.prima = foto.base;
+    formato.nome = 'Originale';
+    formato.salvato = false;
+    $('#posizione-foto').value = 0.5;
+  }
+  $('#riga-pos-foto').hidden = !FORMATI_FOTO[formato.nome];
+  riempi($('#posizione-foto'));
+  costruisciChip($('#formati-foto'), Object.keys(FORMATI_FOTO), formato.nome, nome => { formato.nome = nome; applicaFormato(); });
 }
 function applicaFormato() {
+  if (!formato.prima?.width) return;
   const rapporto = FORMATI_FOTO[formato.nome];
   $('#riga-pos-foto').hidden = !rapporto;
-  if (!rapporto) return impostaBase(formato.prima, false);
-  const ritagliata = ritaglia(formato.prima, rapporto, Number($('#posizione-foto').value));
-  impostaBase(ritagliata, !formato.salvato);
-  formato.salvato = true;
+  const precedente = foto.base;
+  if (!rapporto) {
+    impostaBase(formato.prima, false);
+    formato.ritagliata = null;
+  } else {
+    const ritagliata = ritaglia(formato.prima, rapporto, Number($('#posizione-foto').value));
+    impostaBase(ritagliata, !formato.salvato);
+    formato.salvato = true;
+    formato.ritagliata = ritagliata;
+  }
+  // il ritaglio precedente non serve più: lo libero subito (trascinando l'inquadratura se ne creano tanti)
+  if (precedente !== foto.base && !inUso(precedente)) liberaCanvas(precedente);
 }
-$('#posizione-foto').addEventListener('input', applicaFormato);
+let attesaFormato = 0;
+$('#posizione-foto').addEventListener('input', () => { clearTimeout(attesaFormato); attesaFormato = setTimeout(applicaFormato, 16); });
 
 // --- Look e Migliora ---
 const aggiornaCursoriLuce = costruisciCursori($('#cursori-luce-foto'), CURSORI_LUCE, foto.parametri, () => ridisegnaFoto());
 const aggiornaCursoriMigliora = costruisciCursori($('#cursori-migliora-foto'), CURSORI_MIGLIORA, foto.parametri, () => ridisegnaFoto());
+// a fine trascinamento di un cursore il valore entra nella storia di "Annulla"
+for (const id of ['#cursori-luce-foto', '#cursori-migliora-foto']) $(id).addEventListener('change', registraParametri);
 
+// Un look sostituisce le regolazioni, ma tiene la nitidezza data da "Migliora" se il look non la cambia.
 function applicaPresetFoto(nome) {
-  Object.assign(foto.parametri, PARAMETRI_ZERO, PRESET[nome]);
+  const nitidezza = foto.parametri.nitidezza;
+  Object.assign(foto.parametri, PARAMETRI_ZERO, { nitidezza }, PRESET[nome]);
   aggiornaCursoriLuce();
   aggiornaCursoriMigliora();
   ridisegnaFoto();
+  registraParametri();
 }
 
+// "Migliora automaticamente" si somma al look scelto invece di cancellarlo.
 $('#btn-auto').onclick = () => {
-  Object.assign(foto.parametri, PARAMETRI_ZERO, autoMigliora(foto.base));
+  const auto = autoMigliora(foto.base);
+  for (const [k, v] of Object.entries(auto)) {
+    foto.parametri[k] = ['vivacita', 'nitidezza'].includes(k) ? Math.max(foto.parametri[k], v) : (foto.parametri[k] ?? 0) + v;
+  }
   aggiornaCursoriLuce();
   aggiornaCursoriMigliora();
   ridisegnaFoto();
+  registraParametri();
 };
 
 // --- Chiedi (online) ---
@@ -533,7 +674,9 @@ $('#btn-condividi-foto').onclick = async () => {
 const editorVideo = new EditorVideo($('#canvas-video'), $('#canvas-sottotitoli'));
 const palcoVideo = $('#palco-video');
 const secondi = t => `${t.toFixed(1).replace('.', ',')} s`;
-const aggiornaCursoriVideo = costruisciCursori($('#cursori-video'), [...CURSORI_LUCE, ...CURSORI_MIGLIORA], editorVideo.parametri, () => {});
+const aggiornaCursoriVideo = costruisciCursori($('#cursori-video'), [...CURSORI_LUCE, ...CURSORI_MIGLIORA], editorVideo.parametri, () => editorVideo.segnaModifica());
+$('#canvas-video').addEventListener('webglcontextlost', e => { e.preventDefault(); traccia('WebGL del video perso'); });
+$('#canvas-video').addEventListener('webglcontextrestored', () => { traccia('WebGL del video ripristinato'); editorVideo.ripristinaRenderer(); });
 const adattaVideo = () => { if (editorVideo.file) adatta(palcoVideo, $('#vista-video .area'), $('#canvas-video').width, $('#canvas-video').height); };
 new ResizeObserver(adattaVideo).observe($('#vista-video .area'));
 
@@ -557,6 +700,7 @@ async function caricaVideo(file) {
     costruisciChip($('#formati-video'), Object.keys(FORMATI), 'Originale', scegliFormatoVideo);
     costruisciChip($('#preset-video'), Object.keys(PRESET), 'Naturale', nome => {
       Object.assign(editorVideo.parametri, PARAMETRI_ZERO, PRESET[nome]);
+      editorVideo.segnaModifica();
       aggiornaCursoriVideo();
     });
     costruisciChip($('#velocita-video'), Object.keys(VELOCITA), '1×', v => { editorVideo.velocita = VELOCITA[v]; editorVideo.video.playbackRate = VELOCITA[v]; });
@@ -567,6 +711,7 @@ async function caricaVideo(file) {
     $('#riga-posizione').hidden = true;
     $('#vuoto-video').hidden = true;
     palcoVideo.hidden = false;
+    editorVideo.impostaAttivo(true);
     $('#controlli-video').hidden = false;
     riempiTutti();
     adattaVideo();
@@ -608,11 +753,11 @@ $('#taglio-fine').addEventListener('input', e => {
   $('#val-fine').textContent = secondi(editorVideo.fine);
   editorVideo.vaiA(editorVideo.fine);
 });
-$('#posizione-video').addEventListener('input', e => { editorVideo.posizione = Number(e.target.value); });
+$('#posizione-video').addEventListener('input', e => { editorVideo.posizione = Number(e.target.value); editorVideo.segnaModifica(); });
 
 // --- Sottotitoli automatici ---
 costruisciChip($('#lingua-sottotitoli'), Object.keys(LINGUE), 'Italiano', l => { linguaSottotitoli = LINGUE[l]; });
-costruisciChip($('#stili-sottotitoli'), STILI_SOTTOTITOLI, editorVideo.stileSottotitoli, s => { editorVideo.stileSottotitoli = s; });
+costruisciChip($('#stili-sottotitoli'), STILI_SOTTOTITOLI, editorVideo.stileSottotitoli, s => { editorVideo.stileSottotitoli = s; editorVideo.segnaModifica(); });
 
 $('#btn-sottotitoli').onclick = async () => {
   if (!editorVideo.file) return;
@@ -645,6 +790,7 @@ $('#btn-sottotitoli').onclick = async () => {
 $('#testo-sottotitoli').addEventListener('input', e => {
   const linee = e.target.value.split('\n');
   editorVideo.sottotitoli.forEach((r, i) => { r.testo = (linee[i] ?? '').trim(); });
+  editorVideo.segnaModifica();
 });
 
 // --- Musica ---
@@ -680,17 +826,21 @@ const canvasCrea = $('#canvas-crea');
 const adattaCrea = () => { if (!$('#risultato-crea').hidden) adatta($('#risultato-crea'), $('#area-crea'), canvasCrea.width, canvasCrea.height); };
 new ResizeObserver(adattaCrea).observe($('#area-crea'));
 
+// stili e formati arrivano da un modulo senza librerie esterne: la scheda si apre anche offline
 async function preparaCrea() {
-  const { STILI, FORMATI_CREA } = await import('./crea.js');
+  if ($('#stili-crea').childElementCount) return;
+  const { STILI, FORMATI_CREA } = await import('./crea-opzioni.js');
   costruisciChip($('#stili-crea'), Object.keys(STILI), crea.stile, s => { crea.stile = s; });
   costruisciChip($('#formati-crea'), Object.keys(FORMATI_CREA), crea.formato, f => { crea.formato = f; });
 }
 
-function mostraCreata(canvas) {
-  crea.corrente = canvas;
-  canvasCrea.width = canvas.width;
-  canvasCrea.height = canvas.height;
-  canvasCrea.getContext('2d').drawImage(canvas, 0, 0);
+// L'immagine mostrata vive solo nel canvas a schermo; la galleria tiene file JPEG (leggeri), non canvas.
+const MAX_GALLERIA = 10;
+function mostraCreata(sorgente) {
+  canvasCrea.width = sorgente.width;
+  canvasCrea.height = sorgente.height;
+  canvasCrea.getContext('2d').drawImage(sorgente, 0, 0);
+  crea.corrente = canvasCrea;
   canvasCrea.classList.remove('attesa');
   $('#vuoto-crea').hidden = true;
   $('#risultato-crea').hidden = false;
@@ -709,7 +859,8 @@ async function genera(descrizione) {
     const { generaImmagine } = await import('./crea.js');
     const { canvas } = await generaImmagine(descrizione, crea.stile, crea.formato, token(), (t, p) => mostraStato(t, p));
     mostraCreata(canvas);
-    aggiungiAllaGalleria(canvas);
+    liberaCanvas(canvas);
+    await aggiungiAllaGalleria();
     nascondiStato();
   } catch (e) {
     console.error(e);
@@ -720,16 +871,25 @@ async function genera(descrizione) {
   }
 }
 
-function aggiungiAllaGalleria(canvas) {
+async function aggiungiAllaGalleria() {
+  const file = await inJpeg(canvasCrea);
   const img = document.createElement('img');
-  img.src = copiaCanvas(canvas, 116, Math.round(116 * canvas.height / canvas.width)).toDataURL('image/jpeg', 0.8);
+  img.src = URL.createObjectURL(file); // la miniatura è lo stesso JPEG: niente copie in più
   img.alt = 'Immagine creata';
-  img.onclick = () => {
+  img.onclick = async () => {
     $('#galleria-crea').querySelectorAll('img').forEach(x => x.classList.toggle('attivo', x === img));
-    mostraCreata(canvas);
+    const bmp = await createImageBitmap(file);
+    mostraCreata(bmp);
+    bmp.close?.();
   };
-  $('#galleria-crea').prepend(img);
-  $('#galleria-crea').querySelectorAll('img').forEach(x => x.classList.toggle('attivo', x === img));
+  const galleria = $('#galleria-crea');
+  galleria.prepend(img);
+  galleria.querySelectorAll('img').forEach(x => x.classList.toggle('attivo', x === img));
+  while (galleria.childElementCount > MAX_GALLERIA) {
+    const ultima = galleria.lastElementChild;
+    URL.revokeObjectURL(ultima.src);
+    ultima.remove();
+  }
 }
 
 $('#btn-genera').onclick = () => genera($('#prompt-crea').value.trim());
@@ -748,10 +908,10 @@ function vaiA(modo) {
   interruttore.classList.toggle('video', modo === 'video');
   interruttore.classList.toggle('crea', modo === 'crea');
   for (const m of ['foto', 'video', 'crea']) $(`#vista-${m}`).hidden = m !== modo;
-  if (modo !== 'video') editorVideo.video.pause();
+  editorVideo.impostaAttivo(modo === 'video');
   if (modo === 'foto') adattaPalco();
   if (modo === 'video') adattaVideo();
-  if (modo === 'crea') { preparaCrea(); adattaCrea(); }
+  if (modo === 'crea') { preparaCrea().catch(mostraErrore); adattaCrea(); }
 }
 document.querySelectorAll('.interruttore button').forEach(b => { b.onclick = () => vaiA(b.dataset.modo); });
 
@@ -768,19 +928,41 @@ $('#impostazioni').addEventListener('close', () => {
 $('#leggera').checked = modalitaLeggera();
 $('#leggera').addEventListener('change', e => impostaModalitaLeggera(e.target.checked));
 
+const testoDiagnostica = () => `${infoDispositivo()}\n\nUltimi eventi:\n${leggiTraccia().join('\n')}`;
+async function copiaDiagnostica() {
+  const dialogo = $('#impostazioni');
+  try {
+    await navigator.clipboard.writeText(testoDiagnostica());
+    // con le impostazioni aperte un avviso finirebbe sotto il dialogo: scrivo l'esito sul pulsante
+    if (dialogo.open) $('#btn-copia-diagnostica').textContent = 'Copiata ✓ Incollala nella chat';
+    else avviso('Diagnostica copiata: incollala nella chat.');
+  } catch {
+    $('#testo-diagnostica').value = testoDiagnostica();
+    if (!dialogo.open) dialogo.showModal();
+    $('#blocco-diagnostica').open = true;
+    $('#testo-diagnostica').select();
+  }
+}
+
 const chiusa = chiusuraPrecedente();
-if (chiusa) {
+if (chiusa || sessioneInterrotta) {
   impostaModalitaLeggera(true);
   $('#leggera').checked = true;
-  avviso(`L'ultima volta Ritokko si è chiuso durante: ${chiusa}. Succede quando il telefono finisce la memoria: ` +
-    'ho attivato la modalità leggera (foto a 1080 px, AI più parca). Puoi cambiarla nelle impostazioni.');
+  const durante = chiusa ? ` durante: ${chiusa}` : '';
+  mostraScelta(`L'ultima volta Ritokko si è chiuso all'improvviso${durante}. Di solito è la memoria del telefono: ` +
+    'ho attivato la modalità leggera. Se vuoi aiutarmi a correggerlo, copia la diagnostica e mandamela.', [
+    { etichetta: 'Copia diagnostica', primario: true, azione: copiaDiagnostica },
+    { etichetta: 'OK' },
+  ]);
 }
+$('#btn-impostazioni').addEventListener('click', () => { $('#testo-diagnostica').value = testoDiagnostica(); });
+$('#btn-copia-diagnostica').onclick = e => { e.preventDefault(); copiaDiagnostica(); };
 
 // Nessun errore silenzioso: se qualcosa va storto lo dico, invece di non fare nulla.
 function mostraErrore(e) {
-  fineAttivita();
   const testo = String(e?.message ?? e ?? '');
   if (!testo || /ResizeObserver/.test(testo)) return;
+  traccia(`errore: ${testo.slice(0, 160)}`);
   console.error(e);
   avviso(`Qualcosa è andato storto: ${testo}`);
 }
@@ -789,6 +971,7 @@ window.addEventListener('unhandledrejection', e => mostraErrore(e.reason));
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW', e));
 
+scegliModoSelezione(modoSelezione); // allinea i pulsanti Tocca/Pennello al predefinito (Pennello su iPhone)
 riempiTutti();
 
 // accesso per le prove dal browser

@@ -26,7 +26,12 @@ function caricaModello(suAvanzamento) {
 }
 
 // Estrae l'audio del video, mono a 16 kHz come vuole Whisper.
+const MAX_MB = 150; // il file viene letto tutto in memoria: oltre questa misura su iPhone la pagina si chiuderebbe
+
 async function audioDa(file) {
+  if (file.size > MAX_MB * 1e6) {
+    throw new Error(`il video pesa ${Math.round(file.size / 1e6)} MB: per i sottotitoli usa un video sotto i ${MAX_MB} MB (accorcialo o esportalo prima con Ritokko)`);
+  }
   const ctx = new (window.AudioContext || window.webkitAudioContext)();
   let decodificato;
   try {

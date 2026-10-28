@@ -102,5 +102,7 @@ export async function modificaConTesto(base, istruzione, token, suStato) {
   out.width = base.width;
   out.height = base.height;
   out.getContext('2d').drawImage(bitmap, 0, 0, base.width, base.height);
+  bitmap.close?.();
+  ridotta.width = ridotta.height = 0;
   return out;
 }

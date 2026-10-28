@@ -1,6 +1,8 @@
 // Sfondo: tiene il soggetto selezionato e cambia tutto il resto (sfocato tipo ritratto, bianco prodotto, colori).
 // Tutto su canvas 2D, sul telefono. Per il ritaglio nei formati social c'è ritaglia().
 
+import { liberaCanvas } from './memoria.js';
+
 export const EFFETTI_SFONDO = ['Sfocato', 'Bianco', 'Nero', 'Pastello', 'Gradiente'];
 
 function tela(l, a) {
@@ -22,12 +24,14 @@ function sfoca(sorgente, raggio) {
     const pc = piccola.getContext('2d');
     pc.imageSmoothingQuality = 'high';
     pc.drawImage(corrente, 0, 0, piccola.width, piccola.height);
+    if (corrente !== sorgente) liberaCanvas(corrente);
     corrente = piccola;
   }
   const out = tela(L, A);
   const oc = out.getContext('2d');
   oc.imageSmoothingQuality = 'high';
   oc.drawImage(corrente, 0, 0, L, A);
+  liberaCanvas(corrente);
   return out;
 }
 
@@ -47,8 +51,11 @@ export function componiSfondo(base, soggetto, effetto, intensita = 14) {
   const A = base.height;
   const out = tela(L, A);
   const ctx = out.getContext('2d');
-  if (effetto === 'Sfocato') ctx.drawImage(sfoca(base, intensita * Math.max(L, A) / 1000), 0, 0);
-  else riempi(ctx, effetto, L, A);
+  if (effetto === 'Sfocato') {
+    const sfocata = sfoca(base, intensita * Math.max(L, A) / 1000);
+    ctx.drawImage(sfocata, 0, 0);
+    liberaCanvas(sfocata);
+  } else riempi(ctx, effetto, L, A);
 
   // bordo morbido della maschera, così il soggetto non sembra ritagliato con le forbici
   const morbida = sfoca(soggetto, Math.max(2, Math.max(L, A) / 400));
@@ -68,6 +75,7 @@ export function componiSfondo(base, soggetto, effetto, intensita = 14) {
     ctx.restore();
   }
   ctx.drawImage(ritaglio, 0, 0);
+  liberaCanvas(morbida, ritaglio);
   return out;
 }
 

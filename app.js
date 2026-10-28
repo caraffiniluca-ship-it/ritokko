@@ -2,9 +2,13 @@ import { Renderer, PARAMETRI_ZERO, CURSORI_LUCE, CURSORI_MIGLIORA, PRESET, autoM
 import { EditorVideo, FORMATI, VELOCITA } from './video.js';
 import { EFFETTI_SFONDO, componiSfondo, FORMATI_FOTO, ritaglia } from './sfondo.js';
 import { STILI_SOTTOTITOLI } from './sottotitoli.js';
+import {
+  IOS, latoLavoro, modalitaLeggera, impostaModalitaLeggera, preanalisiAutomatica,
+  inizioAttivita, fineAttivita, chiusuraPrecedente, liberaCanvas, decodificaRidotta,
+} from './memoria.js';
 
 const $ = sel => document.querySelector(sel);
-const LATO_LAVORO = 2048; // Instagram pubblica a 1080 px: 2048 basta e tiene il telefono reattivo
+const PASSI_ANNULLA = IOS ? 5 : 10; // ogni passo è una copia della foto in memoria
 const token = () => localStorage.getItem('token-hf') || '';
 
 // ---------- utilità ----------
@@ -148,7 +152,10 @@ function mostraSorgente(sorgente) {
 function impostaBase(nuova, salvaStoria = true) {
   if (salvaStoria && foto.base) {
     foto.storia.push(foto.base);
-    if (foto.storia.length > 10) foto.storia.shift();
+    if (foto.storia.length > PASSI_ANNULLA) {
+      const vecchia = foto.storia.shift();
+      if (vecchia !== foto.originale && vecchia !== formato.prima) liberaCanvas(vecchia);
+    }
   }
   foto.base = nuova;
   mostraSorgente(nuova);
@@ -158,11 +165,18 @@ function impostaBase(nuova, salvaStoria = true) {
 async function caricaFoto(file) {
   if (!file) return;
   mostraStato('Apro la foto…');
+  inizioAttivita('apertura della foto');
   try {
-    const bitmap = await createImageBitmap(file);
-    const s = Math.min(1, LATO_LAVORO / Math.max(bitmap.width, bitmap.height));
+    const lato = latoLavoro();
+    const bitmap = await decodificaRidotta(file, lato);
+    const s = Math.min(1, lato / Math.max(bitmap.width, bitmap.height));
     const base = copiaCanvas(bitmap, Math.round(bitmap.width * s), Math.round(bitmap.height * s));
+    bitmap.close?.();
     if (!rendererFoto) rendererFoto = new Renderer(canvasFoto);
+    // libero la foto precedente e i suoi passi di "annulla"
+    liberaCanvas(foto.originale, ...foto.storia, sfondo.soggetto, sfondo.anteprima);
+    if (foto.base !== null) liberaCanvas(foto.base);
+    sfondo.anteprima = null;
     foto.originale = base;
     foto.storia = [];
     foto.base = null;
@@ -182,6 +196,8 @@ async function caricaFoto(file) {
   } catch (e) {
     console.error(e);
     avviso('Non riesco ad aprire questa foto.');
+  } finally {
+    fineAttivita();
   }
 }
 
@@ -261,16 +277,17 @@ const testoAiuto = () => (foto.strumento === 'sfondo' ? AIUTO_SFONDO : AIUTO_TOC
 let analisiPronta = null;
 function avviaPreanalisi() {
   const base = foto.base;
-  if (!base || !usaTocco() || analisiPronta === base) return;
+  if (!base || !usaTocco() || analisiPronta === base || !preanalisiAutomatica()) return;
   const aiuto = aiutoAttivo();
   aiuto.textContent = 'Preparo la selezione intelligente…';
+  inizioAttivita('preparazione della selezione intelligente');
   import('./seleziona.js')
     .then(({ preanalizza }) => preanalizza(base, {
       suAvanzamento: v => { aiuto.textContent = `Scarico l'AI di selezione (14 MB, solo la prima volta)… ${Math.round(v * 100)}%`; },
     }))
     .then(() => { if (foto.base === base) analisiPronta = base; })
     .catch(e => console.warn('Pre-analisi non riuscita', e))
-    .finally(() => { if (usaTocco()) aiutoAttivo().textContent = testoAiuto(); });
+    .finally(() => { fineAttivita(); if (usaTocco()) aiutoAttivo().textContent = testoAiuto(); });
 }
 
 function puntoImmagine(e) {
@@ -317,6 +334,7 @@ async function selezionaQui(e) {
   const p = puntoImmagine(e);
   const segno = onda(e);
   const strumento = foto.strumento;
+  inizioAttivita('selezione con un tocco');
   try {
     const { selezionaConTocco } = await import('./seleziona.js');
     if (analisiPronta !== foto.base) mostraStato('Analizzo la foto (solo al primo tocco)…');
@@ -335,6 +353,7 @@ async function selezionaQui(e) {
     console.error(err);
     avviso(`Selezione non riuscita: ${err.message}`);
   } finally {
+    fineAttivita();
     segno.remove();
     selezioneInCorso = false;
   }
@@ -376,6 +395,7 @@ $('#btn-pulisci-maschera').onclick = pulisciMaschera;
 $('#btn-esegui-rimuovi').onclick = async () => {
   if (mascheraVuota) return;
   mostraStato('Preparo la gomma magica…');
+  inizioAttivita('cancellazione con la gomma magica');
   try {
     const { rimuovi } = await import('./inpaint.js');
     const risultato = await rimuovi(foto.base, canvasMaschera, p => mostraStato(`Scarico il modello (28 MB, solo la prima volta)… ${Math.round(p * 100)}%`, p));
@@ -385,6 +405,8 @@ $('#btn-esegui-rimuovi').onclick = async () => {
   } catch (e) {
     console.error(e);
     avviso(`Rimozione non riuscita: ${e.message}`);
+  } finally {
+    fineAttivita();
   }
 };
 
@@ -402,13 +424,21 @@ function aggiornaAnteprimaSfondo() {
   clearTimeout(attesaAnteprima);
   attesaAnteprima = setTimeout(() => {
     if (!sfondo.soggetto || !foto.base) return;
-    sfondo.anteprima = componiSfondo(foto.base, sfondo.soggetto, sfondo.effetto, Number($('#sfocatura').value));
+    const vecchia = sfondo.anteprima;
+    inizioAttivita('anteprima dello sfondo');
+    try {
+      sfondo.anteprima = componiSfondo(foto.base, sfondo.soggetto, sfondo.effetto, Number($('#sfocatura').value));
+    } finally {
+      fineAttivita();
+    }
+    liberaCanvas(vecchia);
     mostraSorgente(sfondo.anteprima);
     $('#btn-sfondo-applica').disabled = false;
   }, 30);
 }
 
 function annullaSfondo() {
+  liberaCanvas(sfondo.soggetto, sfondo.anteprima);
   sfondo.soggetto = null;
   sfondo.anteprima = null;
   $('#btn-sfondo-applica').disabled = true;
@@ -478,6 +508,7 @@ $('#btn-esegui-chiedi').onclick = async () => {
   if (!istruzione) return $('#istruzione').focus();
   if (!navigator.onLine) return avviso('"Chiedi" ha bisogno di internet.');
   mostraStato('Collegamento al servizio online…');
+  inizioAttivita('modifica con "Chiedi"');
   try {
     const { modificaConTesto } = await import('./ai-online.js');
     const risultato = await modificaConTesto(foto.base, istruzione, token(), (t, p) => mostraStato(t, p));
@@ -486,6 +517,8 @@ $('#btn-esegui-chiedi').onclick = async () => {
   } catch (e) {
     console.error(e);
     avviso(e.message);
+  } finally {
+    fineAttivita();
   }
 };
 
@@ -585,6 +618,7 @@ $('#btn-sottotitoli').onclick = async () => {
   if (!editorVideo.file) return;
   editorVideo.video.pause();
   mostraStato('Preparo l\'AI dei sottotitoli…');
+  inizioAttivita('creazione dei sottotitoli');
   try {
     const { generaSottotitoli } = await import('./sottotitoli.js');
     const righe = await generaSottotitoli(editorVideo.file, editorVideo.durata, {
@@ -603,6 +637,8 @@ $('#btn-sottotitoli').onclick = async () => {
   } catch (e) {
     console.error(e);
     avviso(`Sottotitoli non riusciti: ${e.message}`);
+  } finally {
+    fineAttivita();
   }
 };
 // correzione a mano: una riga del testo = un sottotitolo (i tempi restano quelli trovati dall'AI)
@@ -623,6 +659,7 @@ $('#volume-musica').addEventListener('input', e => { editorVideo.volumeMusica = 
 
 $('#btn-esporta-video').onclick = async () => {
   mostraStato('Creo il video…', 0);
+  inizioAttivita('esportazione del video');
   try {
     const file = await editorVideo.esporta(p => mostraStato(`Creo il video… ${Math.round(p * 100)}%`, p));
     mostraScelta('Video pronto!', [
@@ -632,6 +669,8 @@ $('#btn-esporta-video').onclick = async () => {
   } catch (e) {
     console.error(e);
     avviso(`Esportazione non riuscita: ${e.message}`);
+  } finally {
+    fineAttivita();
   }
 };
 
@@ -665,6 +704,7 @@ async function genera(descrizione) {
   crea.ultimoPrompt = descrizione;
   if (crea.corrente) canvasCrea.classList.add('attesa');
   mostraStato('Sto immaginando…');
+  inizioAttivita('creazione di un\'immagine con "Crea"');
   try {
     const { generaImmagine } = await import('./crea.js');
     const { canvas } = await generaImmagine(descrizione, crea.stile, crea.formato, token(), (t, p) => mostraStato(t, p));
@@ -675,6 +715,8 @@ async function genera(descrizione) {
     console.error(e);
     canvasCrea.classList.remove('attesa');
     avviso(e.message);
+  } finally {
+    fineAttivita();
   }
 }
 
@@ -721,6 +763,29 @@ $('#impostazioni').addEventListener('close', () => {
   const t = $('#token-hf').value.trim();
   if (t) localStorage.setItem('token-hf', t); else localStorage.removeItem('token-hf');
 });
+
+// --- Modalità leggera e registro delle chiusure ---
+$('#leggera').checked = modalitaLeggera();
+$('#leggera').addEventListener('change', e => impostaModalitaLeggera(e.target.checked));
+
+const chiusa = chiusuraPrecedente();
+if (chiusa) {
+  impostaModalitaLeggera(true);
+  $('#leggera').checked = true;
+  avviso(`L'ultima volta Ritokko si è chiuso durante: ${chiusa}. Succede quando il telefono finisce la memoria: ` +
+    'ho attivato la modalità leggera (foto a 1080 px, AI più parca). Puoi cambiarla nelle impostazioni.');
+}
+
+// Nessun errore silenzioso: se qualcosa va storto lo dico, invece di non fare nulla.
+function mostraErrore(e) {
+  fineAttivita();
+  const testo = String(e?.message ?? e ?? '');
+  if (!testo || /ResizeObserver/.test(testo)) return;
+  console.error(e);
+  avviso(`Qualcosa è andato storto: ${testo}`);
+}
+window.addEventListener('error', e => mostraErrore(e.error ?? e.message));
+window.addEventListener('unhandledrejection', e => mostraErrore(e.reason));
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW', e));
 

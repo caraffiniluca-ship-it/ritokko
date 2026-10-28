@@ -1,8 +1,10 @@
 // Rimozione oggetti/persone sul telefono con MI-GAN (Picsart AI Research, licenza MIT) via ONNX Runtime Web.
 import * as ort from 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.1/dist/ort.webgpu.min.mjs';
+import { usaWebGPU, IOS } from './memoria.js';
 
 ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.1/dist/';
 ort.env.logLevel = 'error';
+if (IOS) ort.env.wasm.numThreads = 1; // meno memoria su iPhone
 
 const URL_MODELLO = 'https://huggingface.co/andraniksargsyan/migan/resolve/main/migan_pipeline_v2.onnx';
 const CACHE_MODELLI = 'ritokko-modelli-v1';
@@ -35,7 +37,7 @@ async function scaricaModello(suAvanzamento) {
 async function preparaSessione(suAvanzamento) {
   if (sessione) return sessione;
   const modello = await scaricaModello(suAvanzamento);
-  const provider = 'gpu' in navigator ? ['webgpu', 'wasm'] : ['wasm'];
+  const provider = usaWebGPU() ? ['webgpu', 'wasm'] : ['wasm'];
   try {
     sessione = await ort.InferenceSession.create(modello, { executionProviders: provider, logSeverityLevel: 3 });
   } catch (e) {

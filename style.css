@@ -129,6 +129,15 @@ main { flex: 1; display: flex; flex-direction: column; min-height: 0; position: 
 .testo-info ul { margin: 0; padding-left: 18px; }
 .testo-info b { color: var(--testo); }
 dialog details summary { color: var(--testo); }
+dialog label.interruttore-riga { flex-direction: row; align-items: center; justify-content: space-between; gap: 14px;
+  padding: 12px 14px; border-radius: 16px; background: rgba(0,0,0,0.3); border: 1px solid var(--bordo); }
+.interruttore-riga span { display: flex; flex-direction: column; gap: 3px; }
+.interruttore-riga input { -webkit-appearance: none; appearance: none; flex: none; width: 50px; height: 30px; border-radius: 999px;
+  background: rgba(255,255,255,0.18); position: relative; cursor: pointer; transition: background 0.2s; }
+.interruttore-riga input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%;
+  background: #fff; transition: transform 0.2s; }
+.interruttore-riga input:checked { background: var(--gradiente); }
+.interruttore-riga input:checked::after { transform: translateX(20px); }
 @keyframes respira { 50% { opacity: 0.55; } }
 #canvas-crea.attesa { animation: respira 1.6s ease-in-out infinite; }
 

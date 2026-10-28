@@ -1,7 +1,10 @@
 // Selezione automatica con un tocco: SlimSAM (Segment Anything compresso, Apache 2.0) via Transformers.js, sul telefono.
 import { env, SamModel, AutoProcessor, RawImage, Tensor } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2';
 
+import { usaWebGPU, IOS } from './memoria.js';
+
 env.allowLocalModels = false;
+if (IOS && env.backends?.onnx?.wasm) env.backends.onnx.wasm.numThreads = 1; // meno memoria su iPhone
 const ID_MODELLO = 'Xenova/slimsam-77-uniform';
 
 let caricamento = null;
@@ -18,11 +21,11 @@ function preparaModello(suAvanzamento) {
       }
     };
     // GPU (WebGPU, mezza precisione) se c'è; altrimenti processore (WASM, quantizzato)
-    const modello = ('gpu' in navigator
+    const modello = (usaWebGPU()
       ? SamModel.from_pretrained(ID_MODELLO, { dtype: 'fp16', device: 'webgpu', progress_callback })
-      : Promise.reject(new Error('WebGPU assente'))
+      : Promise.reject(new Error('WebGPU non usato su questo dispositivo'))
     ).catch(e => {
-      console.warn('SlimSAM su WebGPU non disponibile, uso WASM', e);
+      console.info('SlimSAM su WASM:', e.message);
       return SamModel.from_pretrained(ID_MODELLO, { dtype: 'q8', device: 'wasm', progress_callback });
     });
     caricamento = Promise.all([modello, AutoProcessor.from_pretrained(ID_MODELLO)])

@@ -1,7 +1,7 @@
 // Service worker: tiene in cache l'app e le librerie, così si apre subito e Luce/Migliora/Video funzionano anche senza rete.
-const VERSIONE = 'ritokko-v4';
+const VERSIONE = 'ritokko-v5';
 const APP = ['./', 'index.html', 'style.css', 'app.js', 'gl.js', 'video.js', 'inpaint.js', 'seleziona.js', 'ai-online.js',
-  'sfondo.js', 'sottotitoli.js', 'crea.js',
+  'sfondo.js', 'sottotitoli.js', 'crea.js', 'memoria.js',
   'manifest.webmanifest', 'logo/ritokko-simbolo.svg', 'icone/icona-180.png', 'icone/icona-192.png', 'icone/icona-512.png'];
 
 self.addEventListener('install', e => {

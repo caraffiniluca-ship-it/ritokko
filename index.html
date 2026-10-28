@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#07060c">
+  <meta name="description" content="Glowy: ogni scatto, da copertina. Editor AI gratuito e open source per foto e video su iPhone.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Glowy">
+  <title>Glowy · Ogni scatto, da copertina</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icone/icona-180.png">
+  <link rel="icon" href="icone/icona-192.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- icone vettoriali riutilizzabili -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#ff4d8d"/><stop offset=".5" stop-color="#a95cff"/><stop offset="1" stop-color="#ffb547"/>
+      </linearGradient>
+    </defs>
+    <symbol id="i-gomma" viewBox="0 0 24 24"><path d="M7 21h12M5.6 13.4l6.3-6.3a2 2 0 0 1 2.8 0l3.2 3.2a2 2 0 0 1 0 2.8L12 19H8.6l-3-3a1.8 1.8 0 0 1 0-2.6zM9 10l5 5"/></symbol>
+    <symbol id="i-sole" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-scintille" viewBox="0 0 24 24"><path d="M10 3l1.9 5.1L17 10l-5.1 1.9L10 17l-1.9-5.1L3 10l5.1-1.9zM18 14l.9 2.1L21 17l-2.1.9L18 20l-.9-2.1L15 17l2.1-.9z"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 11.5a8.5 8.5 0 0 1-12.4 7.6L3 20.5l1.4-5A8.5 8.5 0 1 1 21 11.5z"/><path d="M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01"/></symbol>
+    <symbol id="i-condividi" viewBox="0 0 24 24"><path d="M12 3v12M7.5 7.5L12 3l4.5 4.5M5 13v5a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-5"/></symbol>
+    <symbol id="i-annulla" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
+    <symbol id="i-confronta" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M12 2v20"/><path d="M3 15l4-4 5 5" opacity=".6"/></symbol>
+    <symbol id="i-immagine" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="9" cy="9" r="1.8"/><path d="M21 15l-4.5-4.5L6 21"/></symbol>
+    <symbol id="i-video" viewBox="0 0 24 24"><rect x="2.5" y="5" width="14" height="14" rx="3"/><path d="M16.5 10l5-3v10l-5-3z"/></symbol>
+    <symbol id="i-regola" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></symbol>
+    <symbol id="i-pausa" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
+    <symbol id="i-pulisci" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></symbol>
+    <symbol id="i-tocco" viewBox="0 0 24 24"><path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V11M12 10V9a1.5 1.5 0 0 1 3 0v2M15 10.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1a6 6 0 0 1-4.6-2.2L4 15.5a1.6 1.6 0 0 1 2.4-2L9 15"/><path d="M5 5.5l-1.5-1M7.5 3V1.5M3 8H1.5" opacity=".6"/></symbol>
+    <symbol id="i-pennello" viewBox="0 0 24 24"><path d="M18.4 2.6a2 2 0 0 1 2.9 2.9L11 15.8 8.2 13z"/><path d="M8 13.2c-2.2 0-4 1.8-4 4 0 1.5-1 2.6-2 2.8 1 .9 2.4 1.5 4 1.5 2.8 0 4.8-2 4.8-4.6"/></symbol>
+    <symbol id="i-invia" viewBox="0 0 24 24"><path d="M4 12l16-8-6 16-2.5-6.5z"/></symbol>
+    <symbol id="i-sfondo" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="12" cy="10" r="3"/><path d="M6.5 19.5c1-3 3-4.5 5.5-4.5s4.5 1.5 5.5 4.5"/></symbol>
+    <symbol id="i-ritaglia" viewBox="0 0 24 24"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></symbol>
+    <symbol id="i-bacchetta" viewBox="0 0 24 24"><path d="M15 4V2M15 10V8M11 6h2M17 6h2M4 20l10-10"/><path d="M19 13v2M18 14h2M8 3v2M7 4h2" opacity=".7"/></symbol>
+    <symbol id="i-musica" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></symbol>
+    <symbol id="i-testo" viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="14" rx="3"/><path d="M6 12h4M12 12h6M6 15.5h8M16 15.5h2"/></symbol>
+    <symbol id="i-modifica" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></symbol>
+    <symbol id="i-ripeti" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8M21 3v5h-5M21 12a9 9 0 0 1-15.5 6.2L3 16M3 21v-5h5"/></symbol>
+  </svg>
+
+  <div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+
+  <header>
+    <div class="marchio">
+      <svg class="logo" viewBox="0 0 24 24"><use href="#i-scintille"/></svg>
+      <h1>Glowy</h1>
+    </div>
+    <div class="interruttore vetro" role="tablist">
+      <span class="indicatore"></span>
+      <button data-modo="foto" class="attivo">Foto</button>
+      <button data-modo="video">Video</button>
+      <button data-modo="crea">Crea</button>
+    </div>
+    <button id="btn-impostazioni" class="tondo vetro" aria-label="Impostazioni e informazioni"><svg><use href="#i-regola"/></svg></button>
+  </header>
+
+  <!-- FOTO -->
+  <main id="vista-foto">
+    <div id="area-foto" class="area">
+      <label class="benvenuto" id="vuoto-foto">
+        <span class="eyebrow">AI sul tuo iPhone</span>
+        <span class="titolo">Ogni scatto,<br><em>da copertina.</em></span>
+        <span class="sottotitolo">Togli persone e oggetti con un tocco, cambia lo sfondo, scegli un look. Poi pubblica.</span>
+        <span class="carta-scegli">
+          <span class="icona-grande"><svg><use href="#i-immagine"/></svg></span>
+          <span><b>Scegli una foto</b><small>dalla Libreria o scatta ora</small></span>
+        </span>
+        <span class="badge"><span>Gratis</span><span>Open source</span><span>Privato</span></span>
+        <input type="file" accept="image/*" id="file-foto" hidden>
+      </label>
+      <div id="palco" hidden>
+        <canvas id="canvas-foto"></canvas>
+        <canvas id="canvas-maschera"></canvas>
+        <span class="etichetta-prima" hidden>Prima</span>
+      </div>
+    </div>
+
+    <div class="azioni-rapide" id="azioni-foto" hidden>
+      <button id="btn-annulla" class="tondo vetro" aria-label="Annulla"><svg><use href="#i-annulla"/></svg></button>
+      <button id="btn-confronta" class="pillola vetro"><svg><use href="#i-confronta"/></svg>Prima / Dopo</button>
+      <button id="btn-formato" class="tondo vetro" aria-label="Formato"><svg><use href="#i-ritaglia"/></svg></button>
+      <label class="tondo vetro" aria-label="Nuova foto"><svg><use href="#i-immagine"/></svg><input type="file" accept="image/*" id="file-foto-2" hidden></label>
+    </div>
+
+    <section class="pannello vetro" id="pannello-rimuovi" hidden>
+      <div class="maniglia"></div>
+      <h3>Gomma magica</h3>
+      <div class="segmenti" id="modo-selezione">
+        <button data-modo="tocca" class="attivo"><svg><use href="#i-tocco"/></svg>Tocca</button>
+        <button data-modo="pennello"><svg><use href="#i-pennello"/></svg>Pennello</button>
+      </div>
+      <p class="aiuto" id="aiuto-rimuovi">Tocca la persona o l'oggetto: lo seleziono io. Puoi toccarne più di uno.</p>
+      <label class="cursore" id="riga-pennello" hidden>Pennello <input type="range" id="pennello" min="10" max="120" value="40"></label>
+      <div class="riga">
+        <button id="btn-pulisci-maschera" class="secondario"><svg><use href="#i-pulisci"/></svg>Pulisci</button>
+        <button id="btn-esegui-rimuovi" class="primario"><svg><use href="#i-gomma"/></svg>Cancella</button>
+      </div>
+    </section>
+
+    <section class="pannello vetro" id="pannello-sfondo" hidden>
+      <div class="maniglia"></div>
+      <h3>Sfondo</h3>
+      <p class="aiuto" id="aiuto-sfondo">Tocca il soggetto da tenere: una persona, un prodotto, un animale.</p>
+      <div class="chip" id="effetti-sfondo"></div>
+      <label class="cursore" id="riga-sfocatura">Sfocatura <input type="range" id="sfocatura" min="4" max="40" value="16"></label>
+      <div class="riga">
+        <button id="btn-sfondo-annulla" class="secondario"><svg><use href="#i-pulisci"/></svg>Togli</button>
+        <button id="btn-sfondo-applica" class="primario" disabled><svg><use href="#i-sfondo"/></svg>Applica</button>
+      </div>
+    </section>
+
+    <section class="pannello vetro" id="pannello-luce" hidden>
+      <div class="maniglia"></div>
+      <h3>Look e luce</h3>
+      <div class="chip" id="preset-foto"></div>
+      <div id="cursori-luce-foto" class="cursori"></div>
+    </section>
+
+    <section class="pannello vetro" id="pannello-migliora" hidden>
+      <div class="maniglia"></div>
+      <h3>Migliora</h3>
+      <button id="btn-auto" class="primario largo brilla"><svg><use href="#i-scintille"/></svg>Migliora automaticamente</button>
+      <div id="cursori-migliora-foto" class="cursori"></div>
+    </section>
+
+    <section class="pannello vetro" id="pannello-chiedi" hidden>
+      <div class="maniglia"></div>
+      <h3>Chiedi all'AI <span class="tag">online</span></h3>
+      <p class="aiuto">Scrivi cosa vuoi cambiare. Gratis, con pochi utilizzi al giorno.</p>
+      <div class="chip" id="suggerimenti">
+        <button>Togli le persone sullo sfondo</button>
+        <button>Luce calda da tramonto</button>
+        <button>Cielo azzurro con nuvole</button>
+        <button>Trasforma in stile anime</button>
+      </div>
+      <div class="campo-invio">
+        <textarea id="istruzione" rows="2" placeholder="Es. togli l'uomo con la giacca rossa"></textarea>
+        <button id="btn-esegui-chiedi" class="primario tondo" aria-label="Invia"><svg><use href="#i-invia"/></svg></button>
+      </div>
+    </section>
+
+    <section class="pannello vetro" id="pannello-formato" hidden>
+      <div class="maniglia"></div>
+      <h3>Formato per i social</h3>
+      <div class="chip" id="formati-foto"></div>
+      <label class="cursore" id="riga-pos-foto" hidden>Inquadratura <input type="range" id="posizione-foto" min="0" max="1" step="0.01" value="0.5"></label>
+    </section>
+
+    <nav class="dock vetro" id="barra-foto" hidden>
+      <button data-strumento="rimuovi"><svg><use href="#i-gomma"/></svg><span>Rimuovi</span></button>
+      <button data-strumento="sfondo"><svg><use href="#i-sfondo"/></svg><span>Sfondo</span></button>
+      <button data-strumento="luce"><svg><use href="#i-sole"/></svg><span>Look</span></button>
+      <button data-strumento="migliora"><svg><use href="#i-scintille"/></svg><span>Migliora</span></button>
+      <button data-strumento="chiedi"><svg><use href="#i-chat"/></svg><span>Chiedi</span></button>
+      <button id="btn-condividi-foto" class="evidenza"><svg><use href="#i-condividi"/></svg><span>Pubblica</span></button>
+    </nav>
+  </main>
+
+  <!-- VIDEO -->
+  <main id="vista-video" hidden>
+    <div class="area">
+      <label class="benvenuto" id="vuoto-video">
+        <span class="eyebrow">Reel e TikTok</span>
+        <span class="titolo">Video pronti<br><em>in un tocco.</em></span>
+        <span class="sottotitolo">Taglia, 9:16, look, musica e sottotitoli automatici. Tutto sull'iPhone.</span>
+        <span class="carta-scegli">
+          <span class="icona-grande"><svg><use href="#i-video"/></svg></span>
+          <span><b>Scegli un video</b><small>dalla Libreria</small></span>
+        </span>
+        <input type="file" accept="video/*" id="file-video" hidden>
+      </label>
+      <div id="palco-video" hidden>
+        <canvas id="canvas-video"></canvas>
+        <canvas id="canvas-sottotitoli"></canvas>
+      </div>
+    </div>
+
+    <div id="controlli-video" hidden>
+      <div class="azioni-rapide">
+        <button id="btn-play" class="pillola vetro"><svg><use href="#i-play"/></svg><span>Riproduci</span></button>
+        <label class="tondo vetro" aria-label="Nuovo video"><svg><use href="#i-video"/></svg><input type="file" accept="video/*" id="file-video-2" hidden></label>
+      </div>
+      <section class="pannello vetro fisso">
+        <div class="riga">
+          <label class="cursore">Inizio <output id="val-inizio">0,0 s</output><input type="range" id="taglio-inizio" min="0" max="1" step="0.01" value="0"></label>
+          <label class="cursore">Fine <output id="val-fine">0,0 s</output><input type="range" id="taglio-fine" min="0" max="1" step="0.01" value="1"></label>
+        </div>
+        <div class="chip" id="formati-video"></div>
+        <label class="cursore" id="riga-posizione" hidden>Inquadratura <input type="range" id="posizione-video" min="0" max="1" step="0.01" value="0.5"></label>
+        <div class="chip" id="preset-video"></div>
+        <div class="chip" id="velocita-video"></div>
+
+        <details id="blocco-sottotitoli">
+          <summary><svg><use href="#i-testo"/></svg>Sottotitoli automatici <span class="tag" id="tag-sottotitoli">nuovo</span></summary>
+          <div>
+            <p class="aiuto">L'AI ascolta il video e scrive i sottotitoli, sul telefono. Il primo uso scarica circa 77 MB.</p>
+            <div class="chip" id="lingua-sottotitoli"></div>
+            <button id="btn-sottotitoli" class="secondario largo"><svg><use href="#i-bacchetta"/></svg>Genera sottotitoli</button>
+            <div class="chip" id="stili-sottotitoli" hidden></div>
+            <textarea id="testo-sottotitoli" rows="4" hidden placeholder="Una riga per sottotitolo"></textarea>
+          </div>
+        </details>
+
+        <details>
+          <summary><svg><use href="#i-musica"/></svg>Musica</summary>
+          <div>
+            <label class="secondario largo bottone-file"><svg><use href="#i-musica"/></svg><span id="nome-musica">Scegli un brano (mp3, m4a)</span><input type="file" accept="audio/*" id="file-musica" hidden></label>
+            <div class="riga">
+              <label class="cursore">Audio video <input type="range" id="volume-originale" min="0" max="1" step="0.01" value="1"></label>
+              <label class="cursore">Musica <input type="range" id="volume-musica" min="0" max="1" step="0.01" value="0.8"></label>
+            </div>
+            <p class="aiuto">Usa solo musica di cui hai i diritti: Instagram e TikTok possono silenziare i brani protetti.</p>
+          </div>
+        </details>
+
+        <details>
+          <summary><svg><use href="#i-regola"/></svg>Luce e colore avanzati</summary>
+          <div id="cursori-video" class="cursori"></div>
+        </details>
+        <button id="btn-esporta-video" class="primario largo brilla"><svg><use href="#i-condividi"/></svg>Crea video e pubblica</button>
+      </section>
+    </div>
+  </main>
+
+  <!-- CREA -->
+  <main id="vista-crea" hidden>
+    <div class="area" id="area-crea">
+      <div class="benvenuto statico" id="vuoto-crea">
+        <span class="eyebrow">Generatore AI <span class="tag">online</span></span>
+        <span class="titolo">Descrivilo.<br><em>Lo creo io.</em></span>
+        <span class="sottotitolo">Scrivi un'idea, scegli stile e formato: in pochi secondi hai un'immagine pronta per il feed.</span>
+      </div>
+      <div id="risultato-crea" hidden>
+        <canvas id="canvas-crea"></canvas>
+      </div>
+    </div>
+    <div class="azioni-rapide" id="azioni-crea" hidden>
+      <button id="btn-crea-ripeti" class="tondo vetro" aria-label="Rigenera"><svg><use href="#i-ripeti"/></svg></button>
+      <button id="btn-crea-modifica" class="pillola vetro"><svg><use href="#i-modifica"/></svg>Modifica</button>
+      <button id="btn-crea-pubblica" class="pillola primario"><svg><use href="#i-condividi"/></svg>Pubblica</button>
+    </div>
+    <section class="pannello vetro fisso">
+      <div class="chip" id="stili-crea"></div>
+      <div class="chip" id="formati-crea"></div>
+      <div class="campo-invio">
+        <textarea id="prompt-crea" rows="2" placeholder="Es. una tazza di cappuccino su un tavolo di marmo a Roma, luce del mattino"></textarea>
+        <button id="btn-genera" class="primario tondo" aria-label="Crea"><svg><use href="#i-scintille"/></svg></button>
+      </div>
+      <div class="galleria" id="galleria-crea"></div>
+    </section>
+  </main>
+
+  <div id="stato" hidden>
+    <div class="carta-stato vetro">
+      <div class="anello"></div>
+      <p id="stato-testo"></p>
+      <progress id="stato-barra" max="1"></progress>
+    </div>
+  </div>
+
+  <dialog id="impostazioni" class="vetro">
+    <form method="dialog">
+      <h2>Impostazioni</h2>
+      <label>Token Hugging Face <small>(facoltativo, gratuito)</small>
+        <input type="password" id="token-hf" placeholder="hf_…" autocomplete="off">
+      </label>
+      <p class="aiuto">Senza token "Chiedi" e "Crea" funzionano lo stesso, con meno utilizzi al giorno. Con un account
+        gratuito su huggingface.co (Settings → Access Tokens, tipo "Read") ne hai di più. Il token resta solo su questo telefono.</p>
+
+      <details>
+        <summary>Privacy</summary>
+        <div class="testo-info">
+          <p>Rimuovi, Sfondo, Look, Migliora, Formato e tutto il Video (sottotitoli compresi) lavorano <b>sul telefono</b>:
+            foto, video e audio non escono dall'iPhone.</p>
+          <p>"Chiedi" invia la foto, ridotta a 1024 px, e "Crea" invia il testo che scrivi a servizi pubblici di
+            Hugging Face (huggingface.co), che li elaborano secondo le loro condizioni. Glowy non ha server suoi e non
+            raccoglie dati: non ci sono account, statistiche o pubblicità.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Contenuti creati con l'AI</summary>
+        <div class="testo-info">
+          <p>Quando pubblichi immagini create o modificate con "Crea" o "Chiedi", usa l'etichetta "Creato con l'AI" /
+            "Info AI" di Instagram e TikTok. Lo chiedono le loro regole, ed è una buona pratica di trasparenza.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Licenze e crediti</summary>
+        <div class="testo-info">
+          <p><b>Glowy</b>: licenza MIT.</p>
+          <ul>
+            <li>MI-GAN, rimozione (Picsart AI Research): MIT</li>
+            <li>SlimSAM / Segment Anything, selezione: Apache 2.0</li>
+            <li>Whisper, sottotitoli (OpenAI): MIT</li>
+            <li>ONNX Runtime Web (Microsoft): MIT. Transformers.js (Hugging Face): Apache 2.0</li>
+            <li>Z-Image-Turbo (Tongyi-MAI), FLUX.1 schnell, Qwen-Image / Qwen-Image-Edit: Apache 2.0</li>
+            <li>FLUX.1 Kontext [dev] (Black Forest Labs), usato da "Chiedi": licenza <b>non commerciale</b></li>
+          </ul>
+        </div>
+      </details>
+      <button class="primario largo">Fatto</button>
+    </form>
+  </dialog>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "Glowy",
+  "short_name": "Glowy",
+  "description": "Ogni scatto, da copertina. Ritocca foto e video sull'iPhone e pubblicali su Instagram e TikTok.",
+  "lang": "it",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#07060c",
+  "theme_color": "#07060c",
+  "icons": [
+    { "src": "icone/icona-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icone/icona-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icone/icona-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
